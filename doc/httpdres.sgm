@@ -1,0 +1,167 @@
+
+<!-- HttpdResponseMsg reference -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title><classname>HttpdResponseMsg</classname> Reference</title>
+ <section><title>Introduction</title>
+  
+  <para>
+   Since the <acronym>HTTP</acronym> standard has evolved over a long
+   period of time, the possible responses and actions in a given
+   transaction can depend on the protocol version and client
+   capabilities.  However, none of this needs to matter for the
+   purpose of writing new handlers or version-independent extensions.
+   <classname>HttpdResponseMsg</classname>, along with
+   <classname>HttpdRequest</classname>, serves to encapsulate and hide
+   the details of translating general protocol actions (such as
+   generating a redirect) into specific network transmissions.  In
+   fact, <classname>HttpdRequest</classname> itself encapsulates
+   <classname>HttpdResponseMsg</classname>, so there is usually little
+   need to access this class directly.  But its interface is public
+   should the need arise. 
+  </para>
+
+ </section>
+
+ <section><title>Public Methods</title>
+
+  <section><title><function>Find</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       const HttpdResponseMsg
+       &amp;<function><classname>HttpdResponseMsg</classname>::Find</function>
+      </funcdef>
+      <paramdef>int <parameter>resp</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Given <acronym>HTTP</acronym> status code <parameter
+    class=function>resp</parameter>, return a reference to an
+    appropriate <classname>HttpdResponseMsg</classname> object.  If
+    the given status code is unknown or invalid (i.e. it is not listed
+    in <xref linkend="reqRespCodes">), then a generic <quote>server
+    error</quote> response object will be returned instead.
+   </para>
+
+  </section>
+
+  <section><title><function>Find</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       const HttpdResponseMsg
+       &amp;<function><classname>HttpdResponseMsg</classname>::Find</function>
+      </funcdef>
+      <paramdef>int <parameter>resp</parameter></paramdef>
+      <paramdef>HttpdProtocolVersion <parameter>vers</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Given <acronym>HTTP</acronym> status code <parameter
+    class=function>resp</parameter> and client protocol version
+    <parameter class=function>vers</parameter>, return a reference to an
+    appropriate <classname>HttpdResponseMsg</classname> object.  If
+    the precise status code given is not supported at protocol version
+    <parameter class=function>vers</parameter>, a more general
+    response in the same status category may be selected instead.  If
+    the given status code is unknown or invalid (i.e. it is not listed
+    in <xref linkend="reqRespCodes">), then a generic <quote>server
+    error</quote> response object will be returned instead.
+   </para>
+
+  </section>
+
+ </section>
+
+ <section><title>Public Data</title>
+
+  <section><title><varname>mStatus</varname></title>
+   <para>
+    <literal>const int</literal><varname> mStatus</varname>
+   </para>
+
+   <para>
+    The <acronym>HTTP</acronym> status code associated with this
+    response (see <xref linkend="reqRespCodes"> for possible values).
+   </para>
+
+  </section>
+
+  <section><title><varname>mpName</varname></title>
+   <para>
+    <literal>const char *</literal><varname>mpName</varname>
+   </para>
+
+   <para>
+    A human-readable translation of the associated response's
+    <varname>mStatus</varname> value; for example,
+    <literal>200</literal> means <quote>OK</quote>.
+   </para>
+
+  </section>
+
+  <section><title><varname>mpDescription</varname></title>
+   <para>
+    <literal>const char *</literal><varname>mpDescription</varname>
+   </para>
+
+   <para>
+    A more descriptive human-readable explanation of this response;
+    for example, a redirection might result in <quote>The document has
+    moved.\n</quote>.
+   </para>
+
+  </section>
+
+  <section><title><varname>mVersion</varname></title>
+   <para>
+    <literal>HttpdProtocolVersion</literal><varname>mVersion</varname>
+   </para>
+
+   <para>
+    The minimum <acronym>HTTP</acronym> protocol version required to
+    understand this response.
+   </para>
+
+  </section>
+
+ </section>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

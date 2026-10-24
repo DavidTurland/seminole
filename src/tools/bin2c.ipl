@@ -1,0 +1,117 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     bin2c
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Convert a binary files (such as a Seminole package)
+##                  to initialized C arrays.
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Jan 26, 2002
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE  
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |01/26/02| File creation.                           | MYG  |  
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+use strict;
+use Getopt::Std;
+
+# from Getopt::Std
+use vars qw($opt_o $opt_h);
+
+my $BYTES_PER_LINE = 14;
+
+sub encap_file
+{
+  my $rsz;
+  my $buf;
+  my $i;
+  my $line;
+
+  while ($rsz = read(INFILE, $buf, $BYTES_PER_LINE))
+  {
+     $line = '';
+
+     for($i = 0; $i < $rsz; $i++)
+     {
+        $line  .= sprintf("0x%-2.2X", ord(substr($buf, $i, 1)));
+        if ((!eof INFILE) || (($i + 1) != $rsz))
+        { $line .= ","; }
+     }
+
+     print OUTFILE "  $line\n";
+  }
+}
+
+sub usage
+{
+  print "Usage:\n\t$0 -o <output> [-h <header>] sym=file\n";
+  print "\n";
+
+  exit(1);
+}
+
+sub main
+{
+  my $spec;
+
+  getopt('o:h:');
+  usage() if (!defined $opt_o);
+
+  open(OUTFILE, ">$opt_o") or 
+    die "Can't open output file: $opt_o\n";
+
+  if (defined $opt_h)
+  {
+    open(HEADER, ">$opt_h") or
+      die "Can't open header file: $opt_h\n";
+  }
+
+  foreach $spec (@ARGV)
+  {
+    my ($array_name, $file_name) = ($spec =~ /^([0-9A-Za-z_]+)\=(.*)$/);
+
+    if ((!defined $array_name) or (!defined $file_name))
+    { die "Invalid specification: $spec\n"; }
+
+    open(INFILE, $file_name) or     
+      die "Can't open input file: $file_name\n";
+    binmode(INFILE);
+
+    if (defined $opt_h)
+    {
+      my @finfo;
+      my $sz;
+      if (!(@finfo = stat($file_name)))
+      { die "Can't stat $file_name\n"; }
+      $sz = $finfo[7];
+
+      print HEADER "/* File $file_name: */\n";
+      print HEADER "extern unsigned const char " . $array_name . "[$sz];\n\n";
+    }
+
+    print OUTFILE "/* File $file_name: */\n";
+    print OUTFILE "unsigned const char " . $array_name . "[] =\n{\n";
+    encap_file();
+    print OUTFILE "};\n\n";
+    close(INFILE);
+  } 
+
+  close(OUTFILE);
+  close(HEADER) if (defined $opt_h);
+}
+
+main();

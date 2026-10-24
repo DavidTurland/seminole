@@ -1,0 +1,103 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     ports/Tornado-win32
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Tornado on Win32 port parameters.
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Nov  9, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |11/09/01| File creation.                           | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  002 |01/04/02| Set location of PERL.                    | RMO  |
+## -----+--------+------------------------------------------+------+---------
+##  003 |01/22/02| Add OS name to banner.                   | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  004 |01/24/02| Add host supported tools.                | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+### Various system- or environment-specific tweakable parameters.
+
+# Output product filenames.
+OBJSFX    = o
+SEMLIB    = $(LIBOUT)/libsem.a
+SEMTGTLIB = $(LIBOUT)/libsemtgt.a
+SEMBIN    = $(BINOUT)/shttpd
+SEMINC    = $(INCOUT)/seminole.h
+
+# Basic directory paths.
+BUILT_DIR = $(DEPTH)\built\$(PORT)-$(TARGET)
+LIBOUT    = $(BUILT_DIR)\lib
+BINOUT    = $(BUILT_DIR)\bin
+INCOUT    = $(BUILT_DIR)\include
+HTMLOUT   = $(DEPTH)\built\doc\html
+TOOLOUT   = $(DEPTH)\built\tools
+
+# Settings for Tornado builds
+#
+# At first I tried to pull most of these variables out of the Wind River
+# makefiles. But that didn't seem possible. So these arguments here 
+# worked in Tornado 1.0 for x86. 
+#
+# Tornado is just too broken in this reguard to use their build system. 
+# Actually, I have yet to work on a VxWorks-based project where the 
+# WRS build system was used to build anything except the BSP.
+
+# Set this to your target CPU type.
+CPUARCH  = 386
+CPUID    = I80386
+
+# Default optimizations.
+CFLAGS   = -O2 -fomit-frame-pointer -Wall -I$(INCOUT) -DNDEBUG -xc++ -fno-rtti 
+CFLAGS  += -I$(WIND_BASE)\target\h -nostdinc -nostdlib 
+CFLAGS  += -I$(WIND_BASE)\target\config\all -I$(WIND_BASE)\target\src\config
+CFLAGS  += -I$(WIND_BASE)\target\src\drv -DCPU=$(CPUID)
+CFLAGS  += -DHTTPD_OS_NAME="VxWorks"
+
+# Default to the GNU C++ compiler.
+CXX      = cc$(CPUARCH)
+AR       = ar$(CPUARCH)
+LD       = ld$(CPUARCH)
+RANLIB   = ranlib$(CPUARCH)
+PERL     = perl
+
+# Build System Parameters
+MAKERULES = Tornado.rl
+
+# Tool parameters.
+PERLEXT    = pl
+TOOLEXT    = exe
+HOSTCXX    = cl
+HOSTCFLAGS = /Ox /DNDEBUG /DWIN32 /MD 
+MKTOOL     = $(DEPTH)/maketool.pl
+
+SHELL     = CMD
+MKDIR     = MKDIR
+RM        = DEL
+MV        = MOVE
+CP        = XCOPY
+
+CLEAN_DIR_CMD   = $(RM) /s/q 
+PREP_DIR_CMD    = $(MKDIR) 
+LD_BINARY_CMD   = $(LD) -r -o $@ $(OBJS) $(LIBS)
+MK_LIB_CMD      = $(AR) cr $@ $(OBJS)
+RAN_LIB_CMD     = $(RANLIB) $@
+COPY_HDRS_CMD   = $(CP) $? $(INCOUT)
+RECURSE_CMD     = FOR %s IN ($(SUBDIRS)) DO $(MAKE) $(MFLAGS) -C %s $@
+
+

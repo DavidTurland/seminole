@@ -1,0 +1,464 @@
+
+<!-- HttpdUtilities reference -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title><classname>HttpdUtilities</classname> Reference</title>
+ <section><title>Introduction</title>
+  
+  <para>
+   <classname>HttpdUtilities</classname> is a static class that is used
+   to hold various helper routines that the Seminole core depends on.
+  </para>
+  
+  <para>
+   Most of these routines may be called by your handlers as well, 
+   so it is important that they be well understood.
+  </para>
+
+ </section>
+
+ <section><title>Public Methods</title>
+
+  <section><title><function>StrVCat</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       char
+       *<function><classname>HttpdUtilities</classname>::StrVCat</function>
+      </funcdef>
+  
+      <paramdef>const char *<parameter>p_first</parameter></paramdef>
+      <paramdef>...</paramdef>
+  
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This routine will concatenate a <symbol>NULL</symbol> terminated list of
+    strings and return a pointer to the resultant string in
+    storage obtained from <function>malloc()</function>.
+   </para>
+
+   <para>
+    It is important to terminate the list with 
+    <parameter class=function>(char *)0</parameter>, not
+    <symbol>NULL</symbol>, because some <hardware>CPU</hardware>
+    architectures have different <symbol>NULL</symbol> pointer 
+    representations for different types and the compiler does not know
+    the type of the pointer because it is a variable argument list.
+   </para>
+
+  </section>
+
+  <section><title><function>StrChop</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       char
+       *<function><classname>HttpdUtilities</classname>::StrChop</function>
+      </funcdef>
+      <paramdef>char *&amp;<parameter>p_string</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    This routine will tokenize a white-space delimited string.  A
+    pointer to the next token (within <parameter
+    class=function>p_string</parameter>) is returned by the function.
+    In addition, <parameter class=function>p_string</parameter> is
+    updated to point to the next token so that successive calls to
+    <function>StrChop</function> will tokenize an entire input string.
+    An empty string is returned when no more tokens are available.
+   </para>
+
+  </section>
+  <section><title><function>StrCmpi</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       int
+       <function><classname>HttpdUtilities</classname>::StrCmpi</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_a</parameter></paramdef>
+      <paramdef>const char *<parameter>p_b</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Carry out a case-insensitive lexicographic comparison between
+    <parameter class=function>p_a</parameter> and <parameter
+    class=function>p_b</parameter>.  Returns
+    <returnvalue>0</returnvalue> if they are equal, less than 0 if
+    <parameter class=function>p_a</parameter> is lexicographically
+    less than <parameter class=function>p_b</parameter>, or greater
+    than 0 if <parameter class=function>p_a</parameter> is
+    lexicographically greater than <parameter
+    class=function>p_b</parameter>.
+   </para>
+
+  </section>
+ 
+  <section><title><function>GetLcExtension</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       char
+       *<function><classname>HttpdUtilities</classname>::GetLcExtension</function>
+      </funcdef>
+      <paramdef>char *<parameter>p_file_name</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Get the extension of a file name (in lower case).
+   </para>
+
+   <para>
+    The input string is modified in place and the return value points
+    into that string. You should make a copy of the string for this
+    routine if you need it after the extension is obtained.
+   </para>
+
+  </section>
+
+  <section><title><function>GetComponentPath</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       char
+*<function><classname>HttpdUtilities</classname>::GetComponentPath</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_uri</parameter></paramdef>
+      <paramdef>const char
+      *<parameter>p_filename</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Concatenate the two passed strings to form a single 
+    path. Trailing forward slashes are adjusted so as to avoid 
+    duplicates.
+   </para>
+
+  </section>
+
+  <section id="utNormalize" xreflabel="HttpdUtilities::Normalize">
+  <title><function>Normalize</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       char
+*<function><classname>HttpdUtilities</classname>::Normalize</function>
+      </funcdef>
+      <paramdef>const char *<parameter>uri</parameter></paramdef>
+      <paramdef>const char
+      *<parameter>prefix</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Prepends the string <parameter class=function>prefix</parameter>
+    to the string <parameter class=function>uri</parameter> and
+    removes any <token>.</token> or <token>..</token> references. It
+    returns a pointer to the resultant string in storage obtained from
+    <function>malloc()</function>. It is the caller's responsibility
+    to free it (using <xref linkend="opsFree">).
+   </para>
+
+  </section>
+
+  <section><title><function>HasTrailingSlash</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdUtilities</classname>::HasTrailingSlash</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_path</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This function returns <returnvalue>true</returnvalue> if
+    <parameter class=function>p_path</parameter> ends in a forward
+    slash.
+   </para>
+
+  </section>
+
+  <section><title><function>HasPrefix</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdUtilities</classname>::HasPrefix</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_str</parameter></paramdef>
+      <paramdef>const char *<parameter>p_prefix</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Determine if a string has a certain prefix (case insensitive).
+   </para>
+
+  </section>
+
+  <section><title><function>IsUriProtocol</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdUtilities</classname>::IsUriProtocol</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_uri</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Determine if a <acronym>URI</acronym> contains a protocol. The
+    currently supported protocols are:
+    
+    <itemizedlist>
+     <listitem>
+      <para>
+       <parameter class=function>http:</parameter>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       <parameter class=function>ftp:</parameter>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       <parameter class=function>file:</parameter>
+      </para>
+     </listitem>
+    </itemizedlist>
+        
+    This is useful for deciding if a <acronym>URL</acronym> is
+    relative or absolute.
+   
+   </para>
+
+  </section>
+
+  <section><title><function>UriEncode</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+char *<function><classname>HttpdUtilities</classname>::UriEncode</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_uri</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    <acronym>URL</acronym>-encode a string, being safe about what we
+    quote.  Returns a pointer to an encoded string on success,
+    <symbol>NULL</symbol> on failure.  It is the caller's
+    responsibility to free it (using <xref linkend="opsFree">).
+   </para>
+
+  </section>
+
+  <section><title><function>UriDecode</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+char *<function><classname>HttpdUtilities</classname>::UriDecode</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_encoded</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    <acronym>URL</acronym>-decode a string, being safe about what we
+    quote.  Returns a pointer to the decoded string on success,
+    <symbol>NULL</symbol> on failure.  It is the caller's
+    responsibility to free it (using <xref linkend="opsFree">).
+   </para>
+
+  </section>
+
+  <section><title><function>HtmlQuote</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+char *<function><classname>HttpdUtilities</classname>::HtmlQuote</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_str</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Escape any <acronym>HTML</acronym> specific character entities in
+    <parameter class=function>p_str</parameter>.  Returns a pointer to
+    an encoded string on success, <symbol>NULL</symbol> on failure.
+    It is the caller's responsibility to free it (using <xref
+    linkend="opsFree">).
+   </para>
+
+  </section>
+
+  <section id="utLookup" xreflabel="HttpdUtilities::Lookup">
+  <title><function>Lookup</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+const char *<function><classname>HttpdUtilities</classname>::Lookup</function>
+      </funcdef>
+      <paramdef>const HttpdPair *<parameter>p_table</parameter></paramdef>
+      <paramdef>size_t<parameter> table_size</parameter></paramdef>     
+      <paramdef>const char *<parameter>p_key</parameter></paramdef>
+      <paramdef>int (*p_comp)(const char *p_a, const char *p_b)</paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Carries out a binary search for key <parameter
+    class=function>p_key</parameter> in the pre-sorted table 
+    <parameter class=function>p_table</parameter>, which contains
+    <parameter class=function>table_size</parameter> elements.  If
+    desired, the user-supplied comparison function <parameter
+    class=function>p_comp</parameter> is used, otherwise
+    <function>strcmp()</function> is called.
+   </para>
+
+   <para>
+    Returns the discovered value upon success, <symbol>NULL</symbol>
+    upon failure.
+   </para>
+
+  </section>
+
+  <section id="utFormatTime" xreflabel="HttpdUtilities::FormatTime">
+  <title><function>FormatTime</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+void<function><classname> HttpdUtilities</classname>::FormatTime</function>
+      </funcdef>
+      <paramdef>char *<parameter>p_buf</parameter></paramdef>
+      <paramdef>size_t<parameter> bufsz</parameter></paramdef>     
+      <paramdef>const char *<parameter>p_format</parameter></paramdef>
+      <paramdef>time_t<parameter> t</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Formats <acronym>ANSI</acronym> C <type>time_t</type> value
+    <parameter class=function>t</parameter> according to the specification
+    supplied in <parameter class=function>p_format</parameter>, and
+    stores the result in <parameter class=function>p_buf</parameter>
+    (previously allocated by the caller to be <parameter
+    class=function>bufsz</parameter> in length.)
+   </para>
+
+   <para>
+    For more information, please refer to your C library documentation
+    on the standard <function>strftime()</function> function.
+   </para>
+
+  </section>
+
+ </section>
+
+ <section><title>Public Data</title>
+
+  <section><title><varname>mRoot</varname></title>
+   <para>
+    <literal>const char</literal><varname>
+    mRoot[]</varname><token>;</token>
+   </para>
+
+   <para>
+    This variable represents the path separator used in concatenating
+    path segments, and other miscellaneous uses.  Its default value of
+    <quote>/</quote> should not be changed without considerable
+    thought, since <acronym>URI</acronym> formatting standards specify 
+    it as a hierarchical separator.
+   </para>
+
+  </section>
+
+  <section><title><varname>mNetTimeFormat</varname></title>
+   <para>
+    <literal>const char</literal><varname> mNetTimeFormat[]</varname>
+    <token>;</token>
+   </para>
+
+   <para>
+    Supplied as a parameter to <xref linkend="utFormatTime">,
+    this is a string representing the desired human-readable format to
+    which system time should be converted.  In an
+    <acronym>ANSI</acronym> C environment, the underlying library
+    function ultimately responsible for this transformation is
+    <function>strftime()</function>.  For further information on the
+    contents of this variable, local C library documentation on that
+    function should be consulted.
+   </para>
+
+  </section>
+
+ </section>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

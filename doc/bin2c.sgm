@@ -1,0 +1,110 @@
+<!-- Using the bin2c Tool -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title>Using the bin2c Tool</title>
+
+ <section id="toolbin2c" xrefLabel="bin2c"><title>Introduction</title>
+
+ <para>
+ The <command>bin2c</command> tool is a simple utility that can be used to
+ take binary files and encode them as C arrays. This is mainly useful for
+ encoding content packaged with <xref linkEnd="toolSCPG">, which produces
+ a single binary file as output. 
+ </para>
+
+ <para>
+ This is often the most efficient (and easiest) way to get content included
+ into an embedded system. The included data can be encapsulated as a 
+ <xref linkEnd="HttpdMemoryDataSource"> and passed to an instance of
+ <xref linkEnd="fsRomFileSystem">. 
+ </para>
+
+ </section>
+
+ <section><title>Usage</title>
+
+  <para>
+   When Seminole is built, <command>bin2c</command> is placed in 
+   <filename class="directory">built/tools</filename>. 
+  </para>
+
+
+  <para>
+
+   The following command-line options are accepted by <command>bin2c</command>:
+
+   <table id="bin2cCmdOpts" frame=top colsep=1>
+   <title>bin2c Command Line Options</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><literal>-o</literal></entry>
+     <entry>Set the output filename.  This option is required. A usage
+      message is generated if it is not set.</entry>
+    </row>
+    <row>
+     <entry><literal>-h</literal></entry>
+     <entry>If this option is specified, a header file is generated. The 
+            filename of the header file must follow this option.</entry>
+    </row>
+    </tbody>
+    </tgroup>
+   </table>
+
+   Anything else is taken to be the file name of a file to turn into an 
+   initialized array and the corresponding symbol name to call that array
+   (see below).
+   More than one file may be generated in a single output file.
+
+  </para>
+
+  <para>
+
+  Typically, <command>bin2c</command> is used to encapsulate a 
+  <filename>content.pkg</filename> file:
+
+  </para>
+
+  <para>
+    <userinput>bin2c -o content.c -h content.h website=content.pkg</userinput>
+  </para>
+
+  <para>
+  The above would generate a header and source file that define an array
+  called <symbol>website</symbol>. The header file would look similar to the
+  following:
+  </para>
+
+  <para>
+   <computeroutput>
+   unsigned const char website[16384];
+   </computeroutput>
+  </para>
+
+  <para>
+  Because the size of the array is included even in the header file, the size
+  of the file can be easily determined with a construct such as:
+
+  <informalexample>
+   <programlisting>
+    HttpdMemoryDataSource website_data(website, sizeof(website));
+   </programlisting>
+  </informalexample>
+  
+  </para>
+
+ </section>
+
+</chapter>

@@ -1,0 +1,1461 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     scpg
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Seminole Content Package Generator
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Jan  9, 2002
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE  
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |01/09/02| File creation.                           | MYG  |  
+## -----+--------+------------------------------------------+------+---------
+##  002 |01/26/02| Add alignment directives as per Robert   | MYG  |
+##      |        | Hazbun's suggestion.                     |      |
+## -----+--------+------------------------------------------+------+---------
+##  003 |06/24/02| Fix bug in simple GLOB case.             | MYG  | M1023
+##      |        | Better Win32 file handling support.      |      |
+## -----+--------+------------------------------------------+------+---------
+##  004 |06/29/02| Fix bug in GLOB case (again).            | MYG  | M1026
+## -----+--------+------------------------------------------+------+---------
+##  005 |07/03/02| Restructure this entire program. Group   | MYG  | M1027
+##      |        | code into packages, add filter support,  |      |
+##      |        | and other cleanups.                      |      |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+use 5.005_03;
+
+package SCPG;
+
+use strict;
+
+use Getopt::Std;
+use File::Find;
+use File::Spec;
+use Text::Wrap;
+
+use vars qw( $COLUMNS             $backwards_path_sep   $path_sep
+             $path_list_sep       %mime_table           %used_mime
+             $mime_parsed         %available_encodings  %encoding_table
+             $bad_filter_is_fatal %filter_rules         %filters
+             %alignments          $default_alignment    $alignment_filler
+             $cur_file_path       @root_file_path       $root_path_set
+             $file_listing        $vmpath               $vmfile
+             %present_files       @file_table           %file_paths
+             $include_directories $config_file_name     %config_handlers
+             $PKG_HEADER_SIZE
+             $HTTPD_DIRECTORY_ENCODING);
+
+
+$COLUMNS         = 77;
+$PKG_HEADER_SIZE = 24;
+
+%config_handlers = 
+(
+    'use'         => \&do_use,
+    'mime_map'    => \&do_mime_map,
+    'mime'        => \&do_mime,
+    'encoding'    => \&do_encoding,
+    'filter'      => \&do_filter,
+    'path'        => \&do_path,
+    'script'      => \&do_script,
+    'listing'     => \&do_listing,
+    'vmpath'      => \&do_vmpath,
+    'define'      => \&do_define
+);
+
+# Determine if the O/S we are running on needs Win32 paths.
+$backwards_path_sep = (
+                          ($^O eq 'dos')
+                       || ($^O eq 'MSWin32')
+                       || ($^O eq 'os2')
+                       || ($^O eq 'cygwin')
+                      );
+$path_sep           = $backwards_path_sep ? '\\' : '/';
+$path_list_sep      = $backwards_path_sep ? ';'  : ':';
+
+$bad_filter_is_fatal = 1;
+%filters = ( 
+             'html-squish' => 'HtmlWhitespaceFilter::new',
+             'external'    => 'ExternalFilter::new',
+             'perl'        => 'PerlFilter::new'
+           );
+
+$default_alignment = undef;
+$alignment_filler  = pack("C", 0xff);
+
+@root_file_path = ('.');
+$root_path_set  = undef;
+
+$file_listing   = 'content.lst';
+
+$vmpath         = ($backwards_path_sep 
+                   ? (($ENV{'TEMP'} eq '') 
+                    ? "C:\\TEMP\\" 
+                    : ($ENV{'TEMP'} . '\\'))
+                   : "/tmp/")
+                . "vm$$.";
+
+$include_directories = undef;
+
+# from Getopt::Std
+use vars qw($opt_o $opt_v $opt_h);
+
+$HTTPD_DIRECTORY_ENCODING = 0xfff0;
+
+#---------------------------------------------------------------------------#
+
+sub parse_mime_file
+{
+  my $fn = shift;
+
+  open(INF, $fn) or die "Can't open mime file $fn\n";
+  while (<INF>)
+  {
+    next if /^\s*\#.*$/; # Skip comments. 
+    next if /^\s*$/;     # Skip blanks.
+
+    my @fields = split(/\s+/, $_);
+    my $mime   = shift(@fields);
+    foreach (@fields)
+    {
+      if ($backwards_path_sep)
+      { $_ = lc($_); }
+ 
+      $mime_table{$_} = $mime; 
+    }
+  }
+  close(INF);
+}
+
+sub do_define_encoding
+{
+  if (scalar(@_) < 3)
+  { config_error("Invalid define encoding statement"); }
+
+  my $id_of_encoding   = shift;
+  my $type_of_encoding = shift;
+
+  if ($id_of_encoding !~ /^(.+)\((\d+)\)$/)
+  { config_error("Missing numeric value in $id_of_encoding"); }
+
+  my $name_of_encoding = $1;
+  my $num_of_encoding  = $2;
+
+  if (exists $available_encodings{$name_of_encoding})
+  { config_error("Duplicate encoding $name_of_encoding"); }
+
+  my $new_encoding;
+
+  if ($type_of_encoding eq 'helper')
+  { 
+    $new_encoding = HelperEncoding::new($name_of_encoding,  
+                                        $num_of_encoding, 
+                                        [@_]);
+  }
+  else
+  { config_error("Unknown encoding mechanism $type_of_encoding"); }
+
+  $available_encodings{$name_of_encoding} = $new_encoding;
+}
+
+sub do_define_alignment
+{
+  if (scalar(@_) != 2)
+  { config_error("Invalid define alignment statement"); }
+
+  my $mime_type = shift(@_);
+  my $align     = shift(@_);
+
+  if ($align > 0xffff)
+  { config_error("Invalid alignment: $align"); }
+
+  if ($mime_type eq '*')
+  { $default_alignment = $align;      }
+  else
+  { $alignments{$mime_type} = $align; }
+}
+
+sub do_define
+{
+  my $what = shift;
+
+  if (!defined $what)
+  { config_error("Empty define statement"); }
+
+  if ($what eq 'encoding')
+  { do_define_encoding(@_); }
+  elsif ($what eq 'alignment')
+  { do_define_alignment(@_); }
+  else
+  { config_error("Unknown object type $what"); }
+}
+
+sub do_use
+{
+  if (scalar(@_) == 0)
+  { config_error("Empty use statement"); }
+
+  foreach (@_)
+  {
+     my $activate = (s/^-// == 0);
+
+     if (/^subdirs$/)
+     { $include_directories = $activate; }
+     elsif (/^bad-filter-error$/)
+     { $bad_filter_is_fatal = $activate; }
+     else
+     { config_error("Unknown use option $_"); }
+  }
+}
+
+sub do_mime_map
+{
+  my $fn = shift;
+
+  if (!$mime_parsed)
+  { 
+    parse_mime_file($fn); 
+    $mime_parsed++;
+  }
+  else
+  { 
+    config_error("Mime file already specified");
+  }
+}
+
+sub do_mime
+{
+  config_error("Expecting at least 2 arguments") if (scalar(@_) < 2);
+
+  my $mime   = shift(@_);
+  foreach (@_)
+  { 
+    if ($backwards_path_sep)
+    { $_ = lc($_); }
+
+    $mime_table{$_} = $mime; 
+  }
+}
+
+#---------------------------------------------------------------------------#
+
+sub do_encoding
+{
+  config_error("Expecting exactly 2 arguments") 
+    if (scalar(@_) != 2);
+
+  my ($mime, $enc) = @_;
+
+  config_error("Encoding for $mime already defined") 
+    if (exists $encoding_table{$mime});
+
+  $encoding_table{$mime} = $enc;
+}
+
+sub do_filter
+{
+  config_error("Expecting at least 3 arguments") if (scalar(@_) < 3);
+  my $trigger_mime_type = shift;
+  my $new_mime_type     = shift;
+
+  if ($new_mime_type eq '-')
+  { $new_mime_type = $trigger_mime_type; }
+
+  if (exists $filter_rules{$trigger_mime_type})
+  { config_error("Filter list already specified for $trigger_mime_type"); }
+
+  my $rule;
+  my @filters;
+  foreach $rule (@_)
+  {
+    my $name;
+    my $args;
+    no strict 'refs';
+
+    if ($rule =~ /^(\S+)\:(.+)$/)
+    { $name = $1; $args = $2; }
+    elsif ($rule =~ /^(\S+)$/)
+    { $name = $1; $args = undef; }
+    else
+    { config_error("Invalid filter rule $rule"); }
+
+    my $fn = $filters{$name};
+    my $fo = &$fn($args);
+
+    if (defined $fo)
+    { push(@filters, $fo); }
+  }
+
+  $filter_rules{$trigger_mime_type} = 
+  { 
+    'list'     => \@filters,
+    'new_mime' => $new_mime_type
+  };
+}
+
+#---------------------------------------------------------------------------#
+
+sub do_path
+{
+  if ($root_path_set)
+  { push(@root_file_path, @_); }
+  else
+  {
+    @root_file_path = (@_);
+    $root_path_set  = 1;
+  }
+}
+
+sub do_listing
+{
+  config_error("Expecting exactly 1 argument") if (scalar(@_) != 1);
+  $file_listing = shift;
+}
+
+sub do_vmpath
+{
+  config_error("Expecting exactly 1 argument") if (scalar(@_) != 1);
+  $vmpath = shift;
+}
+
+#---------------------------------------------------------------------------#
+
+sub null_sub {}
+
+sub do_script
+{
+  config_error("Expecting exactly 1 argument") if (scalar(@_) != 1);  
+  my $sf = shift;
+
+  open(SF, $sf) or config_error("Can't open $sf");
+  my @pc = <SF>;
+  close(SF); 
+
+  my $fc = "package ExternalScript;\n" . join('', @pc);
+  @pc = (); # Save memory for compilation in tight spots.
+
+  {
+    local $SIG{__DIE__}  = \&null_sub;
+    local $SIG{__WARN__} = \&null_sub;
+
+    eval $fc;
+    close(SILENT);
+  }
+
+  if ($@)
+  { 
+    $Text::Wrap::columns = $SCPG::COLUMNS;
+
+    my $em = $@;
+    $em =~ s/^\s+//g;
+    $em =~ s/\s+$//g;
+
+    die Text::Wrap::wrap("! ", "  ",
+                         "Script file $sf did not compile: $em\n"); 
+  }
+}
+
+#---------------------------------------------------------------------------#
+
+sub file_mime_type
+{
+  my $fn    = shift;
+  my $fatal = shift;
+  my $ofn   = $fn;
+
+  if ($backwards_path_sep)
+  { $fn = lc($fn); }
+
+  if ($fn !~ /\.(.*)$/)
+  { 
+    if ($fatal)
+    { die "Can't determine mime type for file $ofn\n"; }
+    else
+    { 
+      $opt_v && 
+        print "  ! Skipping file $ofn - unable to determine extension.\n";
+    }
+
+    return undef;
+  }
+
+  if (exists $mime_table{$1})
+  {
+    my $mt = $mime_table{$1};
+
+    $used_mime{$mt}++;
+    return $mt;
+  }
+
+  if ($fatal)
+  { die "Extension $1 can not be mapped to a MIME type\n"; }
+  else
+  {
+    $opt_v &&
+       print "  ! Skipping file $ofn - unable to determine MIME type.\n";
+  }
+
+  return undef;
+}
+
+sub specific_mime_type
+{
+  my $mt = shift;
+
+  $used_mime{$mt}++;
+  return $mt;
+}
+
+#---------------------------------------------------------------------------#
+
+sub encode_file
+{
+  my ($fn, $mime_type, $encoding) = @_;
+  local($_);
+
+  # Validate that the encoding works.
+  if (!exists $available_encodings{$encoding})
+  { die "Unknown encoding type $encoding for file $fn\n"; }  
+
+  # Apply the filter rules.
+  my $input_file   = $fn;
+  my $output_file  = $input_file;
+  my $filter_obj   = $filter_rules{$mime_type};
+  my $filter_count = 0;
+
+  if (defined $filter_obj)
+  {
+    my $filter;
+    my $filter_list = $filter_obj->{'list'};
+
+    foreach $filter (@$filter_list)
+    {
+      # Generate the output file name.
+      $output_file = sprintf("%sf%-.2X", $vmpath, $filter_count++);
+
+      # Filter.
+      if ($filter->perform($input_file, $output_file))
+      {
+        # Delete the input file if it was a temporary.
+        if ($input_file ne $fn)
+        { unlink($input_file); }
+
+        $input_file = $output_file;
+      }
+      elsif ($bad_filter_is_fatal)
+      { die "  ! Filter failed\n"; }
+    }
+
+    $mime_type = $filter_obj->{'new_mime'};
+  }
+
+  # Compute the file size.
+  my @finfo;
+  my $fsz;
+  if (@finfo = stat($input_file))
+  { $fsz = $finfo[7]; }
+  else
+  { 
+    print "  ! Can't stat file $input_file\n"; 
+    return undef;
+  }
+
+  # Send the output off to the encoder.
+  my $encobj = $available_encodings{$encoding};
+  my $fobj   = $encobj->encode($input_file, $mime_type, $fsz);
+
+  # If we ran any filters, we may have a temp file left to clean up.
+  if ($input_file ne $fn) 
+  { unlink($input_file); }
+
+  # Fill in the actual content-length.
+  $fobj->{'content-length'} = $fsz;
+
+  # Return the object.
+  return $fobj;
+}
+
+sub make_directory_nodes
+{
+  my @components = ('/', split('/', shift));
+  my $i;
+  my $lc = scalar(@components) - 1;
+
+  for($i = 0; $i < $lc; $i++)
+  {
+    my $comb_path = '/' . join('/', @components[1..$i]);
+    my $contents;
+    if (!exists $file_paths{$comb_path})
+    { $file_paths{$comb_path} = $contents = {}; }
+    else
+    { $contents = $file_paths{$comb_path}; } 
+
+    $contents->{$components[$i + 1]} = 1;
+  }
+}
+
+sub make_directory_entries
+{
+   my $directory_mime_type = 'x-server-internal/directory';
+   foreach (keys %file_paths)
+   {
+      my $fentry = {};
+      my $dlist  = $file_paths{$_};
+
+      $fentry->{'name'}           = $_;
+      $fentry->{'content-type'}   = specific_mime_type($directory_mime_type);
+      $fentry->{'encoding'}       = $HTTPD_DIRECTORY_ENCODING;
+
+      if ($include_directories)
+      {
+        my $size  = 0;
+        my $vmpos = tell VMFILE;
+
+        foreach (keys %$dlist)
+        {
+           print VMFILE pack("C", length($_)) . $_; 
+           $size += length($_) + 1;
+        }
+
+        $fentry->{'pos'}            = $vmpos;
+        $fentry->{'content-length'} = scalar(keys %$dlist);
+        $fentry->{'size'}           = $size;
+      }
+      else
+      {
+        $fentry->{'content-length'} = 0;
+        $fentry->{'size'}           = 0;
+      }
+
+      push(@file_table, $fentry);
+   }
+}
+
+sub process_glob_entry
+{
+  my ($fs, $params) = @_;
+
+  my ($mime_type, $encoding) = split(/\:/, $params);
+
+  $fs =~ s/\s+$//g;
+  my @files = glob ($fs);
+
+  if ((scalar(@files) == 0) && $opt_v)
+  { print "  ! No match for pattern $fs.\n"; }
+  else
+  {
+    foreach (@files)
+    {
+      # Skip objects that are not files to keep complaints down.
+      next if (!-f $_);
+
+      my $lowcase_file = $backwards_path_sep ? lc($_) : $_;
+      next if ($lowcase_file =~ /^content.lst$/) 
+           || ($lowcase_file =~ /^content.cfg$/);
+
+      my $real_mime_type = $mime_type || file_mime_type($_, 0);
+      next if (!defined($real_mime_type));
+
+      $real_mime_type = specific_mime_type($real_mime_type);
+      process_listing_entry($_, $encoding, $real_mime_type);
+    }
+  }
+}
+
+sub process_listing_entry
+{
+  my ($fn, $encoding, $mime_type) = @_;
+
+  # Generate the file name.
+  my $fen = $File::Find::dir . $path_sep . $fn;
+  if ($path_sep ne '/')
+  { $fen =~ s/\Q$path_sep\E/\//g; }
+  $fen =~ s/^(\Q$cur_file_path\E\/)(.*)$/$2/;
+
+  # Since we can handle multiple directories in a path statement,
+  # we must check to see if it is already in the file table.
+  if (exists $present_files{$fen})
+  { die "! File name /$fen already installed. Aborting.\n"; }
+  else
+  { $present_files{$fen}++;                                 }
+
+  # Determine the encoding type.
+  $encoding ||= $encoding_table{$mime_type};
+  $encoding ||= 'stored';
+  $opt_v && print "  + $fn [$mime_type\:$encoding]\n";
+
+  # Get the encoded data fields.
+  my $fentry = encode_file($fn, $mime_type, $encoding); 
+  next if (!defined $fentry);
+
+  $fentry->{'name'}           = '/' . $fen;
+  $fentry->{'content-type'}   = $mime_type;
+
+  make_directory_nodes($fen);
+  push(@file_table, $fentry);
+}
+
+sub process_directory
+{
+  return unless (/^$file_listing$/);
+  
+  $opt_v && print "* Processing directory $File::Find::dir:\n";
+
+  open(LISTING, $_) or
+   die "Can't open listing file $file_listing in directory $File::Find::dir\n";  
+
+  while (<LISTING>)
+  {
+    s/^\s+//g;
+    s/\s+$//g;
+    next if /^$/;
+
+    my $mime_type;
+    my $encoding;
+
+    if (/^(\S+)\s+\[([a-zA-Z0-9\/\+\_\-\:]+)\]$/)
+    {
+      ($mime_type, $encoding) = split(/\:/, $2);
+
+      $_ = decode_config_str($1);
+
+      $mime_type ||= file_mime_type($_, 1);
+      $mime_type = specific_mime_type($mime_type);
+      process_listing_entry($_, $encoding, $mime_type);
+    }
+    elsif (/^GLOB\s+(\S+)$/)
+    { process_glob_entry(decode_config_str($1), undef); }
+    elsif (/^GLOB\s+(\S+)\s+\[([a-zA-Z0-9\/\+\_\-\:]+)\]$/)
+    { process_glob_entry(decode_config_str($1), $2); }
+    else
+    {
+      my $fn = decode_config_str($_);
+      $mime_type = file_mime_type($fn, 1);
+      process_listing_entry($fn, undef, $mime_type);      
+    }
+  }
+
+  close(LISTING);
+}
+
+#---------------------------------------------------------------------------#
+
+
+sub format_ushort
+{
+  my $v = shift;
+
+  return pack("CC", 
+              $v & 0xff,
+              ($v >> 8) & 0xff);
+}
+
+sub format_ulong
+{
+  my $v = shift;
+
+  return pack("CCCC",
+              $v & 0xff,
+              ($v >> 8)  & 0xff,
+              ($v >> 16) & 0xff,
+              ($v >> 24) & 0xff);
+}
+
+sub format_time
+{
+   my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday) = gmtime;
+
+   return pack("CCCC", $min, $hour, $mday, $mon)
+        . format_ushort(($yday << 3) | ($wday & 7))
+        . format_ushort($year)
+}
+
+sub generate_header
+{
+  my ($mime_offset, $ftab_offset) = @_;
+
+  print OUTF 
+        "SEML" 
+      . format_ushort(scalar(@file_table))
+      . format_ushort(1)
+      . format_ulong($ftab_offset)
+      . format_ulong($mime_offset)
+      . format_time()
+      ;
+}
+
+sub generate_mime_table
+{
+  my $mime;
+  my $offs = 0;
+
+  foreach $mime (sort keys %used_mime)
+  {
+    my $rec;
+
+    $rec = pack("C", length($mime)) . $mime;
+    print OUTF $rec;
+    $used_mime{$mime} = $offs;
+    $offs += length($rec);
+  }
+}
+
+sub generate_file_names
+{
+  my $fentry;
+
+  foreach $fentry (@file_table)
+  {
+    my $fn   = $fentry->{'name'};
+    my $offs = tell OUTF;
+
+    $fentry->{'fname_offs'} = $offs;
+
+    print OUTF pack("C", length($fn)) . $fn;
+  }
+}
+
+sub align_data
+{
+  my ($fentry) = @_;
+  my $pos      = tell OUTF;
+
+  my $mime_type     = $fentry->{'content-type'};
+  my $have_specific = exists $alignments{$mime_type};
+  if ($have_specific || defined($default_alignment))
+  {
+    my $align = $have_specific 
+              ? $alignments{$mime_type} 
+              : $default_alignment;
+
+    if ($align != 0)
+    {
+      while (($pos % $align) != 0)
+      {
+        print OUTF $alignment_filler;
+        $pos++; 
+      }
+    }
+  }
+
+  return $pos;
+}
+
+sub align_file_table
+{
+  my $pos   = tell OUTF;
+  my $align = shift; 
+
+  while (($pos % $align) != 0)
+  {
+    print OUTF $alignment_filler;
+    $pos++; 
+  }
+
+  return $pos;
+}
+
+sub generate_data_sections
+{
+  my $fentry;
+  my $buf;
+
+  foreach $fentry (@file_table)
+  {
+    my $offs = align_data($fentry);
+    my $sz   = $fentry->{'size'};    
+    my $rsz;
+
+    next if ($sz == 0);
+
+    seek VMFILE, $fentry->{'pos'}, 0;
+    while ($rsz = read(VMFILE, $buf, ($sz > 16384) ? 16384 : $sz))
+    { 
+      print OUTF $buf;
+      $sz -= $rsz;
+    }
+
+    $fentry->{'pkgpos'} = $offs;
+  }
+}
+
+sub generate_file_table
+{
+  my $fentry;
+
+  foreach $fentry (@file_table)
+  {
+     print OUTF format_ulong($fentry->{'fname_offs'})
+              . format_ulong($fentry->{'pkgpos'})
+              . format_ulong($fentry->{'content-length'})
+              . format_ulong($fentry->{'size'})
+              . format_ushort($used_mime{$fentry->{'content-type'}})
+              . format_ushort($fentry->{'encoding'})
+              ;
+  }
+}
+
+sub generate_package
+{
+  my $mime_offset;
+  my $ftab_offset;
+
+  # Generate the directory contents.
+  $opt_v && print "* Constructing directory files\n";
+  make_directory_entries();
+
+  # First, sort the file table.
+  $opt_v && print "* Sorting file table\n";
+  @file_table = sort 
+  { 
+    $a->{'name'} cmp $b->{'name'} 
+  } @file_table;
+
+  # Now, open the output file.
+  open(OUTF, ">$opt_o") or
+    die "Can't open output file $opt_o\n";
+  binmode(OUTF);
+  seek OUTF, $PKG_HEADER_SIZE, 0;
+
+  $opt_v && print "* Generating file name section\n";
+  generate_file_names();
+
+  $opt_v && print "* Writing mime table\n";
+  $mime_offset = tell OUTF;
+  generate_mime_table();
+
+  $opt_v && print "* Writing data sections\n";
+  generate_data_sections();
+
+  $opt_v && print "* Writing file table\n";
+  $ftab_offset = align_file_table(4);
+  generate_file_table();
+  
+  $opt_v && print "* Generating header\n";
+  seek OUTF, 0, 0;
+  generate_header($mime_offset, $ftab_offset);
+    
+  # We're done. Close the output file.
+  close(OUTF);
+}
+
+#---------------------------------------------------------------------------#
+
+sub config_error
+{
+  my $msg = shift;
+
+  die "$msg at $config_file_name\:$.\n"; 
+}
+
+sub decode_config_str
+{
+  my $str = shift;
+
+  $str =~ s/\\x([A-Fa-f0-9][A-Fa-f0-9])/pack("c",hex($1))/geo;
+  $str =~ s/\\\{([A-Za-z\._][A-Za-z0-9_\.]*)\}/$ENV{$1}/geo;
+  $str =~ s/\\n/\n/go;
+  $str =~ s/\\r/\r/go;
+  $str =~ s/\\t/\t/go;
+  $str =~ s/\\p/$$/geo;
+  $str =~ s/\\s/\ /go;
+  $str =~ s/\\q/\'/go;
+  $str =~ s/\\d/\"/go;
+  $str =~ s/\\\\/\\/go;
+
+  return $str;
+}
+
+sub separate_args
+{
+  my $line  = shift;
+  my $state = '';
+  my $word  = '';
+  my @chars = split(//, $line . ' '); 
+  my $char;
+  my @arglst;
+
+  foreach $char (@chars)
+  {
+    if ($state eq '')
+    {
+      if (($char eq "\'") or ($char eq "\""))
+      { $state = $char; next; }
+      elsif ($char eq '#')
+      { last; }
+      elsif ($char =~ /\s/)
+      { 
+        push(@arglst, $word) if ($word ne '');
+        $word = ''; 
+      }
+      else
+      { $word .= $char; }
+    }
+    elsif (($state eq "\'") or ($state eq "\""))
+    {
+      if ($char eq $state)
+      { 
+        push(@arglst, $word);
+        $state = '';
+        $word  = '';
+      }
+      else
+      {
+        $word .= $char;
+        if ($char eq '\\')
+        { $state = "Q$state"; }
+      }
+    }
+    elsif ($state =~ /^Q(.)/)
+    {
+      $word  .= $char;
+      $state  = $1;
+    }    
+  }
+
+  return @arglst;
+}
+
+sub walk_config_file
+{
+   $config_file_name        = shift;
+
+   open(CONFIG, $config_file_name) 
+     or die "Can't open configuration file $config_file_name\n";
+
+   my $prevline = '';
+
+   while (<CONFIG>)
+   {
+      # Check line.
+      next if /^\#.*$/;
+      next if /^\s*$/;
+
+      # Strip leading white space.
+      s/^\s+//g;
+
+      # Check to see if the line is a continuation line.
+      if (/\\$/)
+      {
+         s/\\$//;
+         $prevline .= $_;
+         next;
+      }
+      else
+      {
+         $_         = $prevline . $_;
+         $prevline  = '';
+      }
+
+      # Strip trailing whitespace.
+      s/\s+$//g;
+      next if (!$_);
+
+      # Are we setting the environment? 
+      if (/(\s*)([A-Za-z\._][A-Za-z0-9_\.]*)(\s*=\s*)(.*)/o)
+      { 
+        # Strip comments. 
+        s/^(.*)\s*\#.*$/$1/e;
+
+        my $val = $4;
+
+        $val =~ s/\s+$//g;
+        $ENV{$2} = decode_config_str($val); 
+        next;
+      }
+
+      # Look up command.
+      my @argv = separate_args($_);
+      my $cmd  = shift(@argv);
+
+      foreach (@argv) { $_ = decode_config_str($_); }
+
+      # Execute.
+      if (exists $config_handlers{$cmd})
+      {
+         my $proc = $config_handlers{$cmd}; 
+         &$proc (@argv); 
+      }
+      else
+      { 
+        config_error("Unknown command \'$cmd\'");
+      }
+   }
+
+   close(CONFIG);
+}
+
+#---------------------------------------------------------------------------#
+
+sub setup_path
+{
+   my @pp = split(/\Q$path_sep\E/, $0);
+   $#pp--;
+
+   my $cur_bin_dir = join($path_sep, @pp);
+
+   $ENV{'PATH'} .= $path_list_sep . $cur_bin_dir;
+
+   # The TOOL_DIR string below is modified by the maketool installed
+   # program to be the path of the tool output directory.
+   if ($cur_bin_dir ne '__TOOL_DIR__')
+   { $ENV{'PATH'} .= $path_list_sep . '__TOOL_DIR__'; }
+}
+
+sub usage
+{
+  print "Usage:\n\t$0 -v -o <output>\n\n\t-v\tVerbose\n";
+  print "\t-o\tSend output to file ($opt_o)\n\n";
+
+  exit(1);
+}
+
+sub mainsub
+{
+  print "Seminole Content Package Generator v1.1\n";
+  print "Copyright (C) 2002 Mark Grosberg.\n";
+
+  # Parse arguments.
+  getopts('hvo:');
+
+  my $fn = shift(@ARGV) || 'content.cfg';
+  $opt_o ||= 'content.pkg';
+
+  if ($opt_h) 
+  { usage(); }
+
+  # Set up a signal handler to catch Ctrl-C.
+  $SIG{'INT'} = sub { die "! Interrupt"; };
+
+  # Pre-configure the environment.
+  setup_path();
+  $available_encodings{'stored'} = StoredEncoding::new();
+
+  # Parse config file.
+  $opt_v && print "* Reading configuration file $fn.\n";
+  walk_config_file($fn);
+
+  # Now open the vmfile.
+  $vmfile = $vmpath . "tps";
+  open(VMFILE, "+>$vmfile") or die "Can't open vmfile.\n";
+  binmode(VMFILE);
+  
+  eval # In case of an exception we can at least clean-up.
+  {
+    # Now, begin walking the files. 
+    my $file_path;
+    foreach $file_path (@root_file_path)
+    {
+      # I don't know why I have to assign to this explicitly; the implicit
+      # assignment in the foreach() loop should do the same thing but it
+      # doesn't once we get through the callback from find.
+      #
+      # Sigh. 
+      $cur_file_path = $file_path; 
+      find(\&process_directory, $file_path); 
+    }
+
+    # Now generate the output. 
+    $opt_v && print "* Generating $opt_o\n";
+    generate_package();
+  };
+
+  close(VMFILE);
+  unlink($vmfile);
+
+  if ($@) 
+  {
+    print $@; 
+    unlink $opt_o;
+  }
+}
+
+package main;
+
+SCPG::mainsub();
+
+##############################################################################
+
+package StoredEncoding;
+
+sub new
+{
+  my $var = 'STORED';
+  return bless(\$var);
+}
+
+sub encode
+{
+  my ($self, $fn, $mime_type, $fsz) = @_;
+  my $buf;
+
+  open(INF, $fn) or die "Can't open $fn\n";
+  binmode(INF) if ($mime_type !~ /^text\//i);
+
+  my $vmpos = tell SCPG::VMFILE;
+  
+  while (read(INF, $buf, 16384))
+  { print SCPG::VMFILE $buf; }  
+
+  my $frec = 
+  {
+     'pos'      => $vmpos,
+     'size'     => $fsz,
+     'encoding' => 0
+  };
+
+  close(INF);
+  return $frec;
+}
+
+#---------------------------------------------------------------------------#
+
+package HelperEncoding;
+
+sub new
+{
+  my ($name, $num, $pgm) = @_;
+  my $var  = { pgm => $pgm, name => $name, num => $num };
+  return bless($var);
+}
+
+sub encode
+{
+  my ($self, $fn, $mime_type, $fsz) = @_;
+
+  my $vmpos    = tell SCPG::VMFILE;
+  my $cmd      = compute_shell_command(@{$self->{'pgm'}});
+  my $is_ascii = ($mime_type =~ /^text\//i) ? 'ascii' : 'binary';
+  my $res;
+
+  $cmd =~ s/__source_file__/$fn/g;
+  $cmd =~ s/__output_file__/$SCPG::vmfile/g;
+  $cmd =~ s/__is_ascii__/$is_ascii/g;
+
+  close(SCPG::VMFILE);
+  $res = `$cmd`;
+  if (($? >> 8) & 0xff) 
+  { die "Child returned error: $cmd\n"; }
+
+  open(SCPG::VMFILE, "+>>$SCPG::vmfile") or die "Can't re-open vmfile\n";
+  binmode(SCPG::VMFILE);
+  seek SCPG::VMFILE, 0, 2; 
+
+  my $vmend = tell SCPG::VMFILE;
+
+  if ($SCPG::opt_v)
+  {
+    chomp($res);
+
+    if (length($res) > 512)
+    { substr($res, 509) = "..."; }
+
+    $Text::Wrap::columns = $SCPG::COLUMNS;
+
+    my $ch = ($res =~ /\a/) ? '!' : '-';
+    print Text::Wrap::wrap("    $ch ", "      ", $res) . "\n";
+  }
+
+  return 
+  {
+     'pos'      => $vmpos,
+     'size'     => ($vmend - $vmpos),
+     'encoding' => $self->{'num'}
+  };
+}
+
+sub compute_shell_command
+{
+  my @arglst = @_;
+
+  foreach (@arglst)
+  {
+     # If we don't begin with a quote character but contain any
+     # whitespace, then quote the argument.
+     if (/^[^\"\']/ && /\s/)
+     { $_ = "\"" . $_ . "\""; }    
+  }
+
+  return join(' ', @arglst);
+}
+
+#---------------------------------------------------------------------------#
+
+package HtmlWhitespaceFilter;
+
+sub read_html_file
+{
+  my $html;
+  my $fn = shift;
+
+  # Open the file.
+  open(HTMLTXT, $fn) or die "Can't open $fn\n";
+
+  # Second, read-in the HTML.
+  while (<HTMLTXT>)
+  {
+    next if /^\n$/;
+    $html .= $_;
+  }
+
+  # Lastly, close the file.
+  close(HTMLTXT);
+
+  return $html;
+}
+
+sub html_squish
+{
+  my $include_html_comments = shift;
+  my $html                  = shift;
+  my $in_sacred_text;
+  my $out;
+
+  # Now, process the tokens. 
+  while ($html !~ /^\s*$/o)
+  {
+    if ($html =~ s/^([^\<]*)\<//o && ($1 ne ''))
+    {
+      my $token = $1;
+
+      if (!$in_sacred_text)
+      { 
+        $token =~ s/\s+/ /go; # Shrink spaces to one.
+      }
+
+      $out .= $token;
+    }
+  
+    if ($html =~ s/^(\!\-\-)(.*?)(\-\-\>)//so)
+    {
+      if ($include_html_comments)
+      { $out .= "<!-- $2 -->"; }
+
+      next; 
+    }
+
+    if ($html =~ s/^([^\>]*)\>//o && ($1 ne ''))
+    { 
+      my $tag = $1;
+
+      if ($in_sacred_text)
+      {
+        if ($tag =~ /^\s*\/pre/io)    { $in_sacred_text--; }
+        if ($tag =~ /^\s*\/script/io) { $in_sacred_text--; }
+      }
+      else
+      {
+        if ($tag =~ /^\s*pre/io)      { $in_sacred_text++; }
+        if ($tag =~ /^\s*script/io)   { $in_sacred_text++; }
+      }
+
+      my $new_tag;
+
+      while ($tag ne '')
+      {
+        my $prequote;
+        my $postquote;
+
+        if (($tag =~ s/^([^\"]*)(\"?)/$2/) && (($prequote = $1) ne ''))
+        {
+          $prequote =~ s/^\s+//go; # Trim leading whitespace.
+          $prequote =~ s/\s+$//go; # Trim trailing whitespace.
+          $prequote =~ s/\s+/ /go; # Shrink spaces to one.
+
+          $new_tag .= $prequote;
+        }
+
+        if (($tag =~ s/^(\"[^\"]*\")//o) && (($postquote = $1) ne ''))
+        { $new_tag .= $postquote; }      
+      }
+
+      $out .= "<$new_tag>";
+    }  
+  }
+
+  return $out;
+}
+
+sub new
+{
+  my ($args) = @_;
+  my $obj  = { 
+               keep_comments => ($args eq 'keep-comments') 
+             };
+
+  return bless($obj);
+}
+
+sub perform
+{
+  my ($obj, $input_file, $output_file) = @_;
+
+  my $html     = read_html_file($input_file);
+  my $squished = html_squish($obj->{keep_comments}, $html);
+  my $srclen   = length($html);
+  my $dstlen   = length($squished);
+
+  open(OUTF, ">$output_file") or die "Can't open $output_file\n";
+  print OUTF $squished;  
+  close(OUTF);
+
+  if ($SCPG::opt_v)
+  {
+    my $ratio = int(($dstlen / $srclen) * 100.0);
+    print "    - HtmlSquish reduced from $srclen to $dstlen ($ratio%)\n";
+  }
+
+  return 1;
+}
+
+#---------------------------------------------------------------------------#
+
+package ExternalFilter;
+
+sub new
+{
+  my $args = shift;
+  if ((!defined $args) || ($args eq ''))
+  { die "! External filter must have an argument.\n"; }
+
+  return bless(\$args);  
+}
+
+sub perform
+{
+  my ($self, $input_file, $output_file) = @_;
+  my $cmd = $$self;
+
+  if (($cmd =~ /__input__/) && ($cmd =~ /__output__/))
+  {
+    $cmd =~ s/__input__/$input_file/geo;
+    $cmd =~ s/__output__/$output_file/geo;
+
+    # Run the command without redirection.
+    my $res = `$cmd`;
+    if (($? >> 8) & 0xff) 
+    { 
+      print "    ! Child returned error: $cmd\n"; 
+      return undef;
+    }
+
+    if ($SCPG::opt_v)
+    {
+      chomp($res);
+
+      if (length($res) > 512)
+      { substr($res, 509) = "..."; }
+
+      $Text::Wrap::columns = $SCPG::COLUMNS;
+
+      print Text::Wrap::wrap("    # ", "      ", $res) . "\n";
+    }
+  }
+  else
+  {
+    $cmd = "$cmd <$input_file >$output_file";
+    if ((system($cmd) >> 8) & 0xff)
+    {
+      print "    ! Child returned error: $cmd\n"; 
+      return undef;
+    }
+  }
+
+  return 1;
+}
+
+#---------------------------------------------------------------------------#
+
+package PerlFilter;
+
+sub new
+{
+  my $cmd = shift;
+
+  my @args;
+  my $proc;
+
+  if ((!defined $cmd) || ($cmd eq ''))
+  { die "! Perl filter must have an argument.\n"; }
+
+  if ($cmd =~ /^([A-Za-z_][A-Za-z0-9_]*)\((\S+)\)$/o)
+  { 
+    $proc = $1;
+    @args = split(/,/, $2);
+  }
+  elsif ($cmd =~ /^([A-Za-z_][A-Za-z0-9_]*)$/o)
+  { $proc = $1; }
+  else
+  { die "! Invalid perl filter $cmd.\n"; }
+
+
+  return bless({ 'args' => \@args, 'proc' => $proc, 'cmd' => $cmd });  
+}
+
+sub perform
+{
+  my ($self, $input_file, $output_file) = @_;
+
+  my $proc = "ExternalScript::" . $self->{'proc'};
+  my $args = $self->{'args'};
+
+  my $result;
+
+  open(INPUT, $input_file)      
+     or die "    ! Can't open $input_file\n";
+  open(OUTPUT, ">$output_file") 
+     or die "    ! Can't open $output_file\n";
+
+  eval 
+  {
+    no strict 'refs';
+
+    *ExternalScript::INPUT  = *INPUT;
+    *ExternalScript::OUTPUT = *OUTPUT;
+
+    $result = &$proc({
+                       input_file  => $input_file, 
+                       output_file => $output_file
+                     }, @$args);    
+  };
+
+  close(INPUT);
+  close(OUTPUT);
+
+  if ($@)
+  {
+    $Text::Wrap::columns = $SCPG::COLUMNS;
+
+    my $em = $@;
+    $em =~ s/^\s+//g;
+    $em =~ s/\s+$//g;
+
+    print Text::Wrap::wrap("    ! ", 
+                           "      ", 
+                           "Error executing Perl $self->{'cmd'}: $em\n");
+ 
+    return undef;
+  }
+
+  return 1 if ($result);
+  print "    # Filter $self->{'cmd'} did not complete.\n";
+  return undef;
+}
+
+
+__END__

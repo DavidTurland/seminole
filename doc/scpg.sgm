@@ -1,0 +1,862 @@
+
+<!-- Using the SCPG Tool -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title>Using the SCPG Tool</title>
+
+ <section id="toolSCPG" xrefLabel="SCPG"><title>Introduction</title>
+
+  <para>
+
+   <acronym>SCPG</acronym> runs on the development host and compacts 
+   content from the filesystem to form a single binary image that can be 
+   served from the embedded host's <acronym>ROM</acronym> filesystem. The 
+   term <quote>ROM filesystem</quote> is really a misnomer, because the 
+   content package can actually be stored anywhere as long as it can be 
+   accessed as a <xref linkEnd="HttpdDataSource">.  Optionally, 
+   <acronym>SCPG</acronym> can even compress certain components of the 
+   content so that it takes less space. The data source is then interpreted
+   by a <xref linkend="fsRomFileSystem">
+   object.
+
+  </para>
+ 
+  <para>
+
+   <acronym>SCPG</acronym> is written in <acronym>Perl</acronym> but calls
+   upon other tools for certain things (such as compression).  In addition 
+   to the main tool, other tools such as <xref linkEnd="toolbin2c">
+   are provided that can be useful for dealing with the content package 
+   after it's assembled.
+
+  </para>
+
+ </section>
+
+ <section><title>Usage</title>
+
+  <para>
+
+   When Seminole is built, <acronym>SCPG</acronym> is placed in 
+   <filename class="directory">built/tools</filename>. 
+   It can be run from that directory and can (usually) locate all of 
+   its required files from the path that it is executed in. 
+
+  </para>
+
+  <para>
+
+   During the build process of the example binary a small content package
+   (called <filename>semweb.pkg</filename>) is built from the content in
+   the <filename class="directory">src/example/html</filename> directory.
+   The example <filename>content.cfg</filename> provides examples of most
+   options.
+
+  </para>
+
+  <para>
+
+   The following command-line options are accepted by SCPG:
+
+   <table id="scpgCmdOpts" frame=top colsep=1>
+   <title>SCPG Command Line Options</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><literal>-h</literal></entry>
+     <entry>Show help and usage information for command line arguments.
+      </entry>
+    </row>
+    <row>
+     <entry><literal>-v</literal></entry>
+     <entry>Verbose. Give a summary of the content as it is processed.
+      </entry>
+    </row>
+    <row>
+     <entry><literal>-o</literal></entry>
+     <entry>Set the output filename.  If this option is not specified, 
+      it defaults to <filename>content.pkg</filename>.</entry>
+    </row>
+    </tbody>
+    </tgroup>
+   </table>
+
+  </para>
+
+  <para>
+
+   If a filename is specified (without any option) it is taken to be
+   the input configuration file. If an input configuration filename is 
+   not specified, SCPG defaults to <filename>content.cfg</filename> in 
+   the current working directory.
+
+  </para>
+
+ </section>
+
+ <section><title>Input Configuration File Format</title>
+
+  <para>
+
+   The format of the configuration file is similar to most 
+   <trademark class=registered>UNIX</trademark> command line shells.  
+   Tokens of one or more non-whitespace characters are separated by one 
+   or more whitespace characters.  Both single and double quotes may be 
+   used to specify tokens containing whitespace.  The beginning and 
+   ending quoting characters must match.  If single quotes are used, 
+   then double quotes are ignored inside quoted strings.  If double 
+   quotes are used, then single quotes can be used inside a 
+   double quoted string.
+
+  </para>
+
+  <para>
+
+   Comments are allowed.  They are begun by the <literal>#</literal> 
+   character and extend to the end of that line. Comments can begin at 
+   any point in a line and terminate with the end of the line.
+
+  </para>
+
+  <para>
+
+   Within quoted strings, the backslash character can be used to escape to
+   certain special values. The following escape sequences are recognized:
+
+   <table id="scpgEscapeSeqs" frame=top colsep=1>
+   <title>SCPG Escape Sequences</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><literal>\xXX</literal></entry>
+     <entry>This interprets the two characters following the 
+      <literal>x</literal> as a hexadecimal 
+      representation of the <acronym>ASCII</acronym> character.</entry>
+    </row>
+    <row>
+     <entry><literal>\{V}</literal></entry>
+     <entry>This extracts the environment variable named 
+      <literal>V</literal>.  For example: 
+      <quote><userinput>path \{HOME}/public_html</userinput></quote></entry>
+    </row>
+    <row>
+     <entry><literal>\p</literal></entry>
+     <entry>This is the current process identifier of the 
+      <acronym>SCPG</acronym> process.  Commonly used with the 
+      <literal>vmfile</literal> directive to specify a temporary working 
+      file.</entry>
+    </row>
+    <row>
+     <entry><literal>\s</literal></entry>
+     <entry>A space.</entry>
+    </row>
+    <row>
+     <entry><literal>\n</literal></entry>
+     <entry>An <acronym>ASCII</acronym> newline.</entry>
+    </row>
+    <row>
+     <entry><literal>\r</literal></entry>
+     <entry>An <acronym>ASCII</acronym> carriage return.</entry>
+    </row>
+    <row>
+     <entry><literal>\t</literal></entry>
+     <entry>An <acronym>ASCII</acronym> tab.</entry>
+    </row>
+    <row>
+     <entry><literal>\q</literal></entry>
+     <entry>A single-quote character.</entry>
+    </row>
+    <row>
+     <entry><literal>\d</literal></entry>
+     <entry>A double-quote character.</entry>
+    </row>
+    <row>
+     <entry><literal>\\</literal></entry>
+     <entry>A literal <literal>\</literal> character.</entry>
+    </row>
+    </tbody>
+    </tgroup>
+   </table>
+
+  </para>
+
+  <para>
+
+   In addition, lines in <filename>content.cfg</filename> which are in 
+   the form of <literal>name = value</literal> will set the environment 
+   variable called <varname>name</varname> to the value
+   <quote>value</quote> (taking into account any escape characters).
+   Double quotes are not recognized as special characters in the above 
+   form.  For example, this:
+
+   <informalexample>
+    <programlisting>
+     my_var = "This is in environ[]"
+    </programlisting>
+   </informalexample>
+
+   Would actually set the variable <varname>my_var</varname> to the 
+   string containing the double quotes and spaces.  Even though quoting is 
+   not relevant for setting environment variables, the escape sequences 
+   defined above work on the left hand side and can be used to put 
+   special characters into environment variables. 
+
+  </para>
+
+  <para>
+
+   Lines in the configuration file that are neither blank nor comments 
+   are interpreted as directives by <acronym>SCPG</acronym>.
+
+  </para>
+
+  <para>
+  
+   The following directives are available:
+
+   <table id="scpgDirectives" frame=top colsep=1>
+   <title>SCPG Configuration File Directives</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><literal>use</literal></entry>
+     <entry>Set or clears options and flags.  One or more options may 
+          be listed on the command line following this directive. If the 
+          option is preceeded by a <quote>-</quote> then the option is 
+          disabled, otherwise it is enabled.  Available options are
+          listed in <xref linkend="scpgConfigOpts">.</entry>
+    </row>
+    <row>
+     <entry><literal>mime</literal></entry>
+     <entry>Add an entry to the extension-to-<acronym>MIME</acronym> 
+	  type mapping table.  As <acronym>SCPG</acronym> processes the 
+	  directory hierarchy it will try to guess the 
+	  <acronym>MIME</acronym> type of any files that aren't explicitly
+          given <acronym>MIME</acronym> types. The guess is done based 
+	  upon the extension of the file.  Each <literal>mime</literal> 
+	  statement adds one or more extensions to a 
+	  <acronym>MIME</acronym> type. For example, 
+	  <quote><userinput>mime text/html html htm hypertxt</userinput></quote>
+	  would mean that files ending in <literal>.html</literal>, 
+	  <literal>.htm</literal>, and <literal>.hypertxt</literal> are 
+	  assumed to be have the <acronym>MIME</acronym> type
+	  <literal>text/html</literal>.  More than one 
+	  <literal>mime</literal> statement can be issued for each 
+	  <acronym>MIME</acronym> type; each additional mapping is
+	  added to the list (the example statement could easily be
+	  written as three statements, one for each extension).</entry>
+    </row>
+    <row>
+     <entry><literal>mime_map</literal></entry>
+     <entry>Specify an Apache-style <filename>mime.types</filename> file.
+          This is an alternative to specifying the 
+	  <acronym>MIME</acronym> mappings manually using the 
+	  <literal>mime</literal> directive described above. If you have a
+          <filename>mime.types</filename> file in the standard Apache 
+	  format, then this directive causes it to be sucked in and
+	  thus populate the <acronym>MIME</acronym> mapping table.
+          For example, <quote><userinput>mime_map /var/www/conf/mime.types</userinput></quote> 
+	  would read in the common <acronym>MIME</acronym> mappings from a 
+	  standard Apache installation on an OpenBSD system.
+	 </entry>
+    </row>
+    <row><entry><literal>filter</literal></entry>
+         <entry>Specify a series of filters to apply to a specific
+          <acronym>MIME</acronym> type. The first argument is the 
+          <acronym>MIME</acronym> type to trigger on. The second argument
+          is the <acronym>MIME</acronym> type to actually encode the file
+          as (this is what the <acronym>HTTP</acronym> client gets). 
+          Optionally, the output <acronym>MIME</acronym> type may be a 
+          <literal>-</literal> which means the input <acronym>MIME</acronym>
+          type is the same as the output <acronym>MIME</acronym> type.
+          The remaining arguments are all filter specifiers that
+          are executed from left to right. See <xref linkEnd="scpgFilters">.
+         </entry>
+    </row>
+    <row><entry><literal>encoding</literal></entry>
+         <entry>Specify the recommended encoding for a specific 
+	  <acronym>MIME</acronym> type.  The format of the 
+	  <acronym>ROM</acronym> filesystem allows for different files
+          to be encoded using different means.  For example, some files
+          may use a compressed encoding or perhaps a tokenized form.  As 
+	  with <acronym>MIME</acronym> types, <acronym>SCPG</acronym> tries 
+	  to guess the correct encoding based upon a file's 
+	  <acronym>MIME</acronym> type (of course, this can be overridden 
+	  on a file-by-file basis).  Its syntax is otherwise similar
+	  to the <literal>mime</literal> directive.</entry>
+    </row>
+    <row>
+     <entry><literal>path</literal></entry>
+     <entry>Specify the directories containing the root files for the
+          package.  Using the example of an average Apache installation 
+	  (crunching a document root into a 
+	  <acronym>ROM</acronym> filesystem): 
+	  <quote><userinput>path /var/www/htdocs</userinput></quote>. 
+          More than one directory may be specified in this statement. 
+          In that case the content package contains the union of all
+          the files in all the root paths.</entry>
+    </row>
+    <row>
+     <entry><literal>listing</literal></entry>
+     <entry>Specify the filename of the listing files.  Each 
+	  directory that is to contain actual files (not intermediate 
+	  directories) must have an associated <quote>listing file</quote>.
+          The listing file explicitly determines which files in a directory 
+	  go into the <acronym>ROM</acronym> image (to avoid working files 
+	  being mistakenly added).  Listing files also allow
+	  <acronym>MIME</acronym> and encoding parameters to be overridden 
+	  on a file-by-file basis.  By default, listing files are
+	  called <filename>content.lst</filename> (one per directory). 
+	  However, some people may wish to name them something else, such 
+	  as <filename>.content.lst</filename> so that they are hidden 
+	  files.  This directive permits such a change.</entry>
+    </row>
+    <row>
+     <entry><literal>vmpath</literal></entry>
+     <entry>
+          Specify the temporary working file name prefix. See 
+          <xref linkend="scpgVMPath"> for more information.
+     </entry>
+    </row>
+    <row>
+     <entry><literal>define</literal></entry>
+     <entry>This statement is used to define new constructs (such as 
+	  encodings) to <acronym>SCPG</acronym>.  The first argument to 
+	  <literal>define</literal> is the type of the object to define. 
+	  Subsequent arguments are depend on the type of construct.
+	  Further discussion of encoding types (for when the second argument
+          is <quote>encoding</quote>) is found in the next
+	  section. Alignment is covered in its own section as well.</entry> 
+    </row>
+    <row>
+     <entry><literal>script</literal></entry>
+     <entry>This statement is used to load <acronym>Perl</acronym> code
+            into a special namespace (<symbol>ExternalScript</symbol>) 
+            within <acronym>SCPG</acronym>; somewhat of a 
+            <quote>plug-in</quote>. This is most useful for
+            <acronym>Perl</acronym>-based filters. See 
+            <xref linkEnd="scpgFilters">.
+      </entry>
+    </row>
+    </tbody>
+    </tgroup>
+   </table>
+
+  </para>
+
+  <para>
+  
+   <table id="scpgConfigOpts" frame=top colsep=1>
+   <title>SCPG Configuration File Options</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><literal>subdirs</literal></entry>
+     <entry>Setting this option will include additional information in the 
+      <acronym>ROM</acronym> image so that directory listings can be 
+      constructed.  By default, <literal>subdirs</literal> is disabled to 
+      save image space.</entry>
+    </row>
+    <row>
+     <entry><literal>bad-filter-error</literal></entry>
+     <entry>Normally if a filter does not complete successfully construction
+            of the content package is aborted and an error is returned.
+            If this option is set and a filter fails, it is just skipped 
+            and processing continues normally.</entry>
+    </row>
+   </tbody>
+   </tgroup>
+   </table>
+
+  </para>
+
+ </section>
+
+ <section id="scpgVMPath" xrefLabel="Virtual Memory Files">
+  <title>Virtual Memory Files</title>
+
+  <para>
+   <acronym>SCPG</acronym> needs several temporary files when building
+   the content package. Tempoary files are used to represent the partially
+   constructed content package as well as for the various stages of 
+   content preprocessing. 
+  </para>
+
+  <para> 
+   The names of these temporary files begin with a prefix that is
+   specified with the <literal>vmpath</literal> command. This setting
+   should point to an appropriate place for storing temporary files.  
+   As a convention it should end in a period and <acronym>SCPG</acronym> 
+   will append unique strings to this path when constructing temporary files. 
+  </para>
+  
+  <para>
+   This parameter typically defaults to something sane. On UNIX systems
+   it defaults to <filename>/tmp/vmXXXX.</filename>. On Windows 
+   it defaults to <filename>c:\temp\vmXXXX.</filename>. Where  
+   <literal>XXXX</literal> is replaced with the process id of 
+   <acronym>SCPG</acronym>. If the environment variable
+   <literal>TEMP</literal> is set then that overrides the default 
+   directory (but not the filename). Optionally this prefix can
+   point to a RAM disk to increase performance if one of sufficient
+   capacity is available.
+  </para>
+
+ </section>
+
+ <section id="scpgFilters" xrefLabel="Filters"><title>Filters</title>
+
+  <para>
+   <acronym>SCPG</acronym> allows preprocessing to be done on content
+   before it is packaged. For each possible <acronym>MIME</acronym> type
+   one or more filters may be run on the input. The output of each filter 
+   is passed as the input to the next in succession. After all filters 
+   have been applied to a file the <acronym>MIME</acronym> may optionally
+   be changed and the file is passed to the appropriate encoder.
+  </para>
+
+  <para>
+   Filters are specified with the <literal>filter</literal> keyword and 
+   attached to a specific <acronym>MIME</acronym> type. The following
+   are the built-in filters:
+
+   <table id="scpgFilterSymbols" frame=top colsep=1>
+   <title>SCPG Filter Types</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><literal>html-squish</literal></entry>
+     <entry>This filter should only be applied to <acronym>HTML</acronym> 
+      (or similar files).  It removes redundant whitespace when possible to 
+      shorten the final content length. This reduces storage requirements
+      and transmission time of the file. For a further reduction in storage
+      the file can also be encoded with a compressor. This encoding 
+      can optionally take an argument of <literal>keep-comments</literal>
+      to prevent removal of <acronym>HTML</acronym> comments.
+     </entry>
+    </row>
+    <row>
+     <entry><literal>external</literal></entry>
+     <entry>
+      This represents a filter operation that is performed by an 
+      external program. The supplied argument is the operating system
+      command to run. If the argument to this filter contains the
+      string <literal>__input__</literal> and <literal>__output__</literal>
+      then those strings are substituted with the input and output file 
+      names of the filter, respectively. Otherwise the external filter
+      is given its input on standard in and the output is read from
+      standard out. 
+     </entry>
+    </row>
+    <row>
+     <entry><literal>perl</literal></entry>
+     <entry>This filter relies on the fact that <acronym>SCPG</acronym>
+            is written in <acronym>Perl</acronym>. Using code loaded with
+            the <literal>script</literal> keyword, subroutines in that code
+            can be called. If the subroutine returns true the filter
+            operation is considered successful, otherwise failure
+            is assumed.</entry>
+    </row>
+    </tbody></tgroup></table>
+  
+   </para>
+
+   <para>
+    The <literal>external</literal> filter can be quite useful for quick
+    transformations using <trademark class=registered>UNIX</trademark>
+    tools such as <command>tr</command>. For example, to remove all of
+    the <literal>$</literal> from a document, use the following filter rule:
+
+     <informalexample>
+      <screen>
+       filter text/html - "external:tr -d '$'"
+      </screen>
+     </informalexample>
+
+   </para>
+
+   <para>
+    The <literal>perl</literal> filter is quite powerful because all of the
+    constructs of <acronym>Perl</acronym> are available for processing 
+    content. The syntax of the <literal>perl</literal> filter argument is 
+    similar to that of normal <acronym>Perl</acronym> subroutine calls:
+    
+     <informalexample>
+      <screen>perl:mysub(1,2,foo)</screen>
+     </informalexample> 
+
+    The above filter argument would result in a call
+    to an included subroutine called <symbol>mysub</symbol> with four arguments. 
+    The first argument is always passed in by <acronym>SCPG</acronym> 
+    and is a reference to a hash that contains the following members:
+
+   <table id="scpgPerlFuncHashArgs" frame=top colsep=1>
+   <title>SCPG Perl Filter Hashref Contents</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><symbol>input_file</symbol></entry>
+     <entry>This is the name of the input file, which is also opened for
+            reading with a handle of <symbol>INPUT</symbol>.</entry>
+    </row>
+    <row>
+     <entry><symbol>output_file</symbol></entry>
+     <entry>This is the name of the output file, whic is also opened for
+            writing with a handle of <symbol>OUTPUT</symbol>.</entry>
+    </row>
+   </tbody></tgroup></table>
+
+  </para>
+
+ </section>
+
+ <section><title>Encoding Types</title>
+
+  <para>
+
+   As briefly described in the previous section, the
+   <literal>define</literal> directive can be used to add new
+   encoding types.  This section describes the particulars of how 
+   <acronym>SCPG</acronym> implements encoding.
+
+  </para>
+
+  <para>
+
+   By default, there is encoding type predefined by 
+   <acronym>SCPG</acronym>: <literal>stored</literal>. 
+
+   This is the most basic encoding method.  The content is stored
+   in the <acronym>ROM</acronym> image <quote>as is</quote>.  This is 
+   the most efficient encoding in terms of speed but the least efficient 
+   in terms of space. In fact, on some operating systems that map the
+   <acronym>ROM</acronym> package into the address space a direct send
+   to the <acronym>TCP/IP</acronym> stack can be performed without any
+   copying overhead.
+
+  </para>
+   
+  <para>
+
+   However, other encodings can be established by use of the 
+   <literal>define</literal> directive.  Seminole supports a simple 
+   compression scheme based upon the LZRW1/KH algorithm that has been 
+   floating around the net for some time.  Seminole also 
+   supports a more efficient (but slower) compression engine based on
+   LZ with arithmatic coding. The compressors are bundled as helper
+   applications compiled during the normal Seminole build.
+   A description of how to add the compressors as encoding types will
+   be illustrated below.
+  </para>
+
+  <para>
+
+   The initial part of an encoding type definition in the input
+   configuration file is <literal>define encoding</literal>.  After
+   <literal>encoding</literal>, the next argument is the symbolic name by 
+   which the encoding is known to <acronym>SCPG</acronym> with the ID 
+   number used by Seminole to decode the data in parentheses. 
+
+  </para>
+
+  <para>
+   Following the symbolic name and ID is the encoding access method. 
+   Currently, all encodings are accessed as external <quote>helper</quote> 
+   applications signified by the argument <literal>helper</literal>, but 
+   this argument gives room for future expansion. 
+
+  </para>
+
+  <para>
+   The arguments following the access method are the command and arguments 
+   to execute.  Certain tokens are replaced during execution of the helper:
+
+   <table id="scpgEncodingSymbols" frame=top colsep=1>
+   <title>SCPG Encoder Symbols</title>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><literal>__is_ascii__</literal></entry>
+     <entry>Set to either the string <quote>ascii</quote> or 
+      <quote>binary</quote> depending on whether the input file's 
+      <acronym>MIME</acronym> type requires any format conversion. 
+      </entry>
+    </row>
+    <row>
+     <entry><literal>__source_file__</literal></entry> 
+     <entry>This is expanded to the name of the input file that is to be 
+      used as the source of data.
+      </entry>
+    </row>
+    <row>
+     <entry><literal>__output_file__</literal></entry>
+     <entry>This is the name of the file that the encoded data should be 
+      written to.  This file should be opened in binary append mode as 
+      there may be existing data that can not be clobbered in the file.
+      </entry>
+    </row>
+    </tbody>
+    </tgroup>
+    </table>
+  
+   </para>
+
+   <para>
+
+    For example, to attach the supplied compression helper app to
+    encodings called <literal>lzrw1kh</literal> and <literal>lzari</literal>, 
+    you can add the following directives to your input configuration file:
+
+    <informalexample>
+    <screen>
+     define encoding lzrw1kh(1) helper lzrw1kh_compress 16384  \
+                                               __source_file__ \
+	                                       __output_file__
+
+     define encoding lzari(2)   helper lzari_compress   16384  \
+                                               __source_file__ \
+                                               __output_file__
+    </screen>
+    </informalexample>
+
+   </para>
+
+   <para>
+    The number in parenthesis after the encoding name is the codepoint 
+    that is used to reference the encoding in the runtime portion of
+    Seminole. It is important that the numbers always are associated
+    with the correct encoding. It is correct to define two 
+    <symbol>lzari</symbol> encodings with different block sizes as long
+    as the code point is always 2.
+   </para>
+
+   <para>
+
+    The first parameter to compressor (<command>lzrw1kh_compress</command>
+    or <command>lzari_compress</command>), <literal>16384</literal>, is the
+    block size that the tool tries to compress with.  There is a fixed
+    amount of overhead per compressed block, however; the larger this value,
+    the more memory is required by Seminole during decompression of the
+    file.
+
+   </para>
+
+   <para>
+
+    The compression helpers also need to 
+    know the native size of an unsigned short (as represented by 
+    <constant>HTTPD_USHRT_SZ</constant> in <filename>seminole.h</filename>) 
+    as found on the hardware running Seminole.  This is done by setting an 
+    environment variable named <varname>HTTPD_USHRT_SZ</varname> to the 
+    value that Seminole on the target will be using. For example:
+
+    <informalexample>
+    <screen>
+     HTTPD_USHRT_SZ = 2
+    </screen>
+    </informalexample>
+
+   The special value of <quote>host</quote> will also work in this
+   context to signify that the value used should be that of the host 
+   currently running <acronym>SCPG</acronym> (for non-cross-compiled 
+   configurations).
+
+  </para>
+
+ </section>
+
+ <section><title>Alignment</title>
+
+  <para>
+  For efficiency reasons, it is often desirable to align content on specific
+  addresses. This can be especially true of certain kinds of flash memory. 
+  Alignments can be specified either globally or on a per-mime-type basis.
+  </para>
+
+  <para>
+  To define an alignment specific to HTML pages of 16 bytes, for example,
+  add the following to the configuration file:
+
+  <informalexample>
+    <screen>
+     define alignment text/html   16
+    </screen>
+    </informalexample>
+
+  </para>
+
+  <para>
+  To define an alignment for all content that does not have a specific
+  alignment of 8 bytes, the following may be added to the configuration 
+  file:
+
+  <informalexample>
+    <screen>
+     define alignment * 8
+    </screen>
+    </informalexample>
+  </para>
+
+  <note>
+   <para>
+   An alignment of 0 means no alignment. This can be used to override a
+   default alignment to not align various infrequently used MIME types.
+   </para>
+  </note>
+
+  <note>
+   <para>
+   Currently, no attempt is made to optimize content by placing files with 
+   larger alignments first. It is expected that some common sense is used
+   when assigning alignments. 
+   </para>
+  </note>
+
+ </section>
+
+ <section><title>Listing File Format</title>
+
+  <para>
+
+   After setting up an appropriate input configuration file, the only 
+   remaining step is to create listing files in each of the subdirectories 
+   beneath the directory named by the <literal>path</literal> directive.
+  
+  </para>
+
+  <para>
+
+   The format of a listing file is straightforward. In the simplest case, 
+   it is line-by-line listing of filenames. For example:
+
+   <informalexample>
+   <screen>
+    order.html
+    pizza.html
+    sandwich.html
+    frootloops.html
+   </screen>
+   </informalexample>
+
+   The same escape sequences defined in <xref
+   linkend="scpgEscapeSeqs"> are allowed in filenames placed in the 
+   listing file.
+
+  </para>
+
+  <para>
+
+   However, an optional override block may follow the filename. For 
+   example, let's assume that a directory contains a 
+   <filename>tar.gz</filename> file. In that case, you would 
+   like to override the default <acronym>MIME</acronym> type (unless you 
+   can give <acronym>SCPG</acronym> a hint to guess the correct type based
+   on the extension). 
+
+  </para>
+
+  <para>
+
+   To do this, the listing file might appear as follows:
+
+   <informalexample>
+   <screen>
+    index.html
+    file.tar.gz     [x-application/octet-stream]
+   </screen>
+   </informalexample>
+
+   </para>
+
+   <para>
+
+    In addition, assuming we wanted to use a different encoding type
+    (<literal>lzrw1kh</literal>, for example) we could specify both 
+    overrides as follows:
+
+    <informalexample>
+    <screen>
+     index.html
+     download.html     [x-application/octet-stream:lzrw1kh]
+    </screen>
+    </informalexample>
+
+   </para>
+
+   <para>
+
+    Or, optionally, we could specify the compressed encoding for 
+    <filename>index.html</filename> and leave 
+    <filename>download.html</filename>'s encoding alone:
+
+    <informalexample>
+    <screen>
+     index.html        [:lzrw1kh]
+     download.html     [x-application/octet-stream]
+    </screen>
+    </informalexample>
+
+   </para>
+
+   <para>
+
+    It can become tedious to place every file in the listing file. 
+    <acronym>SCPG</acronym> allows filename globbing with a slightly 
+    different syntax than usual:
+
+    <informalexample>
+    <screen>
+     GLOB *.html [:html-squish]
+    </screen>
+    </informalexample>
+
+    In this case, <acronym>SCPG</acronym> would suck up all of the files 
+    that match the pattern <literal>*.html</literal> and apply the 
+    <literal>html-squish</literal> encoding to them.  Of course, the
+    default <acronym>MIME</acronym> type may be overridden.  In which case, 
+    it applies to all of the files:
+
+    <informalexample>
+    <screen>
+     GLOB *.html [text/super-html:html-squish]
+    </screen>
+    </informalexample>
+
+   <literal>GLOB</literal> lines and regular filenames can be intermixed. 
+   As with regular filenames, the pattern can contain escaped characters. 
+
+  </para>
+
+ </section>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,126 @@
+
+<!-- HttpdRedirector reference -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title><classname>HttpdRedirector</classname> Reference</title>
+ <section><title>Introduction</title>
+  
+  <para>
+   <classname>HttpdRedirector</classname> provides a simple handler 
+   interface for the purpose of sending <acronym>HTTP</acronym>
+   redirect responses to clients.  It translates any given request
+   within its designated <acronym>URL</acronym> space to a new
+   <acronym>URI</acronym>, possibly on a different host.
+  </para>
+
+ </section>
+
+ <section><title>Public Methods</title>
+
+  <section><title><function>HttpdRedirector</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       <function><classname>HttpdRedirector</classname></function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_prefix</parameter></paramdef>
+      <paramdef>const char *<parameter>p_newuri</parameter></paramdef>
+      <paramdef>int <parameter>status</parameter></paramdef>      
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    <classname>HttpdRedirector</classname>'s constructor is documented
+    here, because of its role as the sole interface to the class'
+    functionality.  After object creation, redirectors are installed
+    into the Seminole handler chain at runtime just as any other
+    handler.
+   </para>
+
+   <para>
+    The <acronym>URL</acronym> prefix for which this redirector will
+    handle requests is provided in <parameter
+    class=function>p_prefix</parameter>.  The new
+    <acronym>URI</acronym> to which clients are redirected is provided
+    in <parameter class=function>p_newuri</parameter>.  If a local
+    pathname is provided (i.e. the redirect is local to this Seminole
+    host), then it must be normalized, meaning that it should not
+    contain relative path references (such as
+    <quote><token>.</token></quote> or
+    <quote><token>..</token></quote>), and it must end with a forward
+    slash (<quote><token>/</token></quote>).  An appropriate
+    <acronym>HTTP</acronym> status code is given by <parameter
+    class=function>status</parameter> (see <xref
+    linkend="reqRespCodes"> for possible values).
+   </para>
+
+  </section>
+
+ </section>
+
+ <section><title>Public Data</title>
+
+  <section><title><varname>mpNewUri</varname></title>
+   <para>
+    <literal>char
+    *</literal><varname>mpNewUri</varname><token>;</token>
+   </para>
+   
+   <para>
+    A pointer to a string representing the <acronym>URI</acronym> to
+    which requests for this <classname>HttpdRedirector</classname>
+    object are to be redirected.  If the new destination is a pathname
+    rather than a complete <acronym>URI</acronym>, the implied server
+    is the current one.
+   </para>
+
+  </section>
+
+  <section><title><varname>mStatusCode</varname></title>
+   <para>
+    <literal>int </literal><varname>mStatusCode</varname><token>;</token>
+   </para>
+   
+   <para>
+    Contains the desired <acronym>HTTP</acronym> status code to be
+    used when issuing a redirect to a client (see <xref
+    linkend="reqRespCodes"> for possible values).
+   </para>
+
+  </section>
+
+ </section>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

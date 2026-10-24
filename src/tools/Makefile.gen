@@ -1,0 +1,36 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     tools/Makefile.gen
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Tool compilation and installation.
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Jan 22, 2002
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |01/22/02| File creation.                           | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  002 |06/23/02| Add header dependency.                   | MYG  | M1021
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+TOOLHDRS = compress-util.h
+
+EXPAND DEPTH
+USE    STANDARD_ENV
+EXPAND PERLDEPS
+EXPAND TOOLDEPS
+USE    TOOL_RULES

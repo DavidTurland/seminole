@@ -1,0 +1,90 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     ports/MSVC
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Visual C++ on Win32 port parameters.
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Nov 15, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |11/15/01| File creation.                           | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  002 |01/04/02| Set location of PERL.                    | RMO  |
+## -----+--------+------------------------------------------+------+---------
+##  003 |01/22/02| Add OS name to banner.                   | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  004 |01/24/02| Support host-based tools.                | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  005 |06/24/02| NT4 build problems.                      | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  006 |07/10/02| Wrong extension for tools.               | MYG  | S1005
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+### Various system- or environment-specific tweakable parameters.
+
+# Output product filenames.
+OBJSFX     = obj
+SEMLIB     = $(LIBOUT)\seminole.lib
+SEMTGTLIB  = $(LIBOUT)\semtgt.lib
+SEMBIN     = $(BINOUT)\shttpd.exe
+SEMINC     = $(INCOUT)\seminole.h
+
+# Basic directory paths.
+BUILT_DIR  = $(DEPTH)\built\$(PORT)-$(TARGET)
+LIBOUT     = $(BUILT_DIR)\lib
+BINOUT     = $(BUILT_DIR)\bin
+INCOUT     = $(BUILT_DIR)\include
+HTMLOUT    = $(DEPTH)\built\doc\html
+TOOLOUT    = $(DEPTH)\built\tools
+
+# Use the winsock library
+SYSLIBS    = ws2_32.lib
+
+# Default optimizations.
+CFLAGS     = /Ox /I$(INCOUT) /DNDEBUG /DWIN32 /MD 
+
+# Use the CL driver to do both compiling and linking.
+CXX        = cl
+AR         = lib 
+LD         = cl
+PERL       = perl
+
+# Tool parameters.
+#
+# Normally, on Win32 we do not assume a cross-development environment.
+# Otherwise, HOSTCXX != CXX and HOSTCFLAGS != CFLAGS.
+PERLEXT    = .pl
+TOOLEXT    = .exe
+HOSTCXX    = $(CXX)
+HOSTCFLAGS = $(CFLAGS)
+MKTOOL     = $(DEPTH)/maketool.pl
+
+# Build System Parameters
+MAKERULES  = nmake.rl
+
+SHELL      = CMD
+MKDIR      = MKDIR
+RM         = DEL
+MV         = MOVE
+CP         = XCOPY
+
+CLEAN_DIR_CMD   = $(RM) /s/q 
+PREP_DIR_CMD    = $(MKDIR) 
+LD_BINARY_CMD   = $(LD) /Fe$@ $(OBJS) $(LIBS) $(SYSLIBS)
+MK_LIB_CMD      = $(AR) /OUT:$@ $(OBJS)
+RECURSE_CMD     = @FOR %%s IN ($(SUBDIRS)) DO CMD /C "CD %%s && $(MAKE) $(MFLAGS) $@"

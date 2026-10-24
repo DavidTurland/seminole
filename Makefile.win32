@@ -1,0 +1,54 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     Makefile.win32
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Top-level build directives for NMAKE.
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Dec 27, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |12/27/01| File creation.                           | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+DEPTH = .
+
+# Pull in our build meta-information
+include <$(DEPTH)\mkdefs>
+
+# Pull in our environment-tailored rules and vars
+include <$(DEPTH)\ports\$(PORT)>
+
+SUBDIRS  = doc src
+
+# This 'all' is really everything but docs.
+all::
+	CD src && $(MAKE) $(MFLAGS) $@
+
+docs::
+	CD doc && $(MAKE) $(MFLAGS)
+
+clean::
+        FOR %%s IN ($(SUBDIRS)) DO CMD /C "CD %%s && $(MAKE) $(MFLAGS) $@"
+
+deps::
+	$(PERL) ./makedeps.pl -r ports/$(MAKERULES) -d src
+
+depclean::
+	./makedeps.pl -c -d src
+
+

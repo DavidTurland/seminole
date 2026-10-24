@@ -1,0 +1,41 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     VxWorks/Makefile.gen
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Compilation directives for Seminole targets
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Oct 30, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |10/30/01| File creation.                           | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+####
+
+EXPAND DEPTH
+
+USE STANDARD_ENV
+
+OUTDIRS = $(LIBOUT) $(INCOUT)
+LIBRARY = $(SEMTGTLIB)
+
+PUBINCS sem_sys.h
+
+EXPAND SRCDEPS
+
+USE STD_RULES MAKE_LIBRARY MAKE_INCS MAKE_PREP

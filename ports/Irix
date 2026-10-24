@@ -1,0 +1,65 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     ports/Irix
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     SGI Irix (6.5) specific environmental parameters
+##
+## AUTHOR:          Richard Offer
+##
+## CREATION DATE:   Dec 31, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |12/31/01| File creation.                           | RMO  |
+## -----+--------+------------------------------------------+------+---------
+##  002 |01/22/02| Add OS name to banner.                   | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+### Various system- or environment-specific tweakable parameters.
+
+## Settings for Irix 6.5 systems
+
+## NOTES:
+##
+## This definition was tested with:
+##
+## [from `uname -a':]
+## IRIX64 morgaine 6.5-ALPHA-1287827120 12060645 IP30 mips
+## (an alpha of 6.5.15)
+##
+## MIPSpro Compilers: Version 7.3.1.2m
+##
+
+# Default optimizations.
+CFLAGS   = -I$(INCOUT) -DNDEBUG -Dsocklen_t=int -DHTTPD_OS_NAME=\"Irix\"
+
+# Default to the MIPS ProC C++ compiler
+CXX      = /usr/bin/CC
+AR       = /usr/bin/ar
+RANLIB   = true
+
+# Use the Freeware Perl until we can get a newer Perl in /usr/bin
+PERL      = /usr/freeware/bin/perl
+
+# Make sure we always know what we are doing.
+TARGET    = POSIX
+PORT      = Irix
+
+# Default libraries needed (assuming use of POSIX threads and BSD sockets)
+SYSLIBS   = -lpthread
+
+# Everything else is POSIXly delicious.
+include $(DEPTH)/ports/POSIX
+

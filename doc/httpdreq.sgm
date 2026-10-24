@@ -1,0 +1,751 @@
+
+<!-- HttpdRequest reference -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title><classname>HttpdRequest</classname> Reference</title>
+ <section><title>Introduction</title>
+  
+  <para>
+   <classname>HttpdRequest</classname> represents a single
+   <acronym>HTTP</acronym> request in time being handled by Seminole.
+   An <classname>HttpdRequest</classname> object is instantiated by the
+   <function>Server()</function> method within
+   <classname>Httpd</classname> for each incoming request, and then
+   discarded once a handler either processes the request or no handler
+   is found to do so.
+  </para>
+  
+  <para>
+   The constructor of this class performs some basic request
+   processing before a handler is located:
+  </para>
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     The request is parsed and checked for syntactic validity
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Public variables are populated with various things of interest in
+     the headers
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     <acronym>MIME</acronym> headers are tokenized, and the entire
+     header list sorted
+    </para>
+   </listitem>
+  </itemizedlist>
+
+  <para>
+   Understanding the contents and interfaces of
+   <classname>HttpdRequest</classname> is quite important when writing
+   a new handler class, since it is the primary unit of data passed
+   from Seminole's core to the handlers.
+  </para>
+
+  <para>
+   Once a request is received by a handler and the necessary
+   processing performed, the next step is naturally to send a
+   response.  <classname>HttpdRequest</classname> provides methods to
+   do this also; for most handlers the starting point will often be
+   <function>ResponseHeader()</function>.
+  </para>
+
+ </section>
+
+ <section><title>Public Methods</title>
+
+  <section><title><function>Server</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       Httpd
+       *<function><classname>HttpdRequest</classname>::Server</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Returns a pointer to the <classname>Httpd</classname> object which 
+    instantiated this <classname>HttpdRequest</classname>.
+   </para>
+
+  </section>
+
+  <section><title><function>Method</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       const char
+       *<function><classname>HttpdRequest</classname>::Method</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Returns a character pointer to a string describing the
+    <acronym>HTTP</acronym> method associated with this
+    <classname>HttpdRequest</classname> (<literal>GET</literal>,
+    <literal>PUT</literal>, and so on).
+   </para>
+
+  </section>
+
+ 
+  <section><title><function>Protocol</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       HttpdProtocolVersion
+       <function><classname>HttpdRequest</classname>::Protocol</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Returns an <type>HttpdProtocolVersion</type> value specifying the
+    <acronym>HTTP</acronym> version associated with this
+    <classname>HttpdRequest</classname>.
+   </para>
+
+  </section>
+
+  <section><title><function>Path</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       char
+       *<function><classname>HttpdRequest</classname>::Path</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Returns a character pointer to the path component of the
+    <acronym>URI</acronym> contained within this
+    <classname>HttpdRequest</classname>, exactly as it was sent by the
+    client.
+   </para>
+
+  </section>
+
+  <section><title><function>ClientAddr</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       const HttpdIpAddress
+       <function><classname>HttpdRequest</classname>::ClientAddr</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Returns the client <acronym>IP</acronym> address for this request.
+   </para>
+
+  </section>
+
+  <section><title><function>Socket</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       HttpdSocket
+       &amp;<function><classname>HttpdRequest</classname>::Socket</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Returns the <classname>HttpdSocket</classname> object which provides
+    communication with this request's client.
+   </para>
+
+  </section>
+
+  <section><title><function>Header</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       const char
+       *<function><classname>HttpdRequest</classname>::Header</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_mime</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   
+   <para>
+    Returns the value associated with <acronym>HTTP</acronym> request
+    header <parameter class=function>p_mime</parameter>, or
+    <symbol>NULL</symbol> if the header is not found.
+   </para>
+
+  </section>
+
+  <section id="reqParseHVer" xreflabel="HttpdRequest::ParseHttpVersion">
+  <title><function>ParseHttpVersion</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       HttpdProtocolVersion
+   <function><classname>HttpdRequest</classname>::ParseHttpVersion</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_version</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Given an <acronym>HTTP</acronym> version string <parameter
+    class=function>p_version</parameter>, return a representative
+    <type>HttpdProtocolVersion</type> value.  If no version can be
+    distinguished, the constant referring to <acronym>HTTP</acronym>
+    version 0.9 is returned (that protocol version is recognized by
+    its lack of version identification on the wire).
+   </para>
+
+   <para>
+    The expected formatting of <parameter
+    class=function>p_version</parameter> is
+    <quote><literal>HTTP/</literal><replaceable>X</replaceable><literal>.</literal><replaceable>Y</replaceable></quote>,
+    where <replaceable>X</replaceable> represents the major version,
+    and <replaceable>Y</replaceable> the minor version.
+   </para>
+
+   <para>
+    A list of current protocol version constants can be found in <xref
+    linkend="typesHttpVersions">, to simplify comparisons.
+   </para>
+
+  </section>
+
+  <section><title><function>CompleteUri</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       const char *
+       <function><classname>HttpdRequest</classname>::CompleteUri</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    If a full request <acronym>URI</acronym> was presented as the argument 
+    to the request then this method will return that <acronym>URI</acronym>. 
+    If the request did not include a full <acronym>URI</acronym>, then this 
+    method returns <symbol>NULL</symbol>.
+   </para>
+
+  </section>
+
+  <section><title><function>LastReq</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdRequest</classname>::LastReq</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This method determines if this is the last request that will be
+    processed by the current connection. This can be the case if any of
+    the previous request processing resulted in a case that requests
+    the end of the connection. 
+   </para>
+
+   <para>
+    This is most typically done because a content handler was not able to
+    determine the content-length of the data it was going to send. There
+    are also administrative reasons for why this request may be the last,
+    such as a timeout waiting for a request or limit or quota reached.
+   </para>
+
+  </section>
+
+  <section><title><function>SetLastReq</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdRequest</classname>::SetLastReq</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This forces this request to be the last on the connection. After
+    calling this method, <function>LastReq</function> will return 
+    <returnvalue>true</returnvalue>. There is no way to undo the 
+    effects of this method once called. 
+   </para>
+
+   <para>
+    This method must be called before <function>Respond</function>,
+    <function>ResponseHeader</function>, <function>Redirect</function>
+    is called. This restriction is because part of the <acronym>HTTP</acronym>
+    protocol specification requires that a <literal>Connection: close</literal>
+    header be sent out on the last result.
+   </para>
+
+  </section>
+
+  <section><title><function>RequestedHostName</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       const char *
+       <function><classname>HttpdRequest</classname>::RequestedHostName</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+   This method returns the name of the host that was requested. There are
+   several different ways this is obtained depending on the structure
+   of the request. On failure, <symbol>NULL</symbol> is returned. 
+   </para>
+  </section>
+
+  <section><title><function>NeedHeaders</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdRequest</classname>::NeedHeaders</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Indicates whether the current request requires
+    <acronym>HTTP</acronym> headers to be printed within the response.
+   </para>
+
+   <para>
+    Returns <returnvalue>true</returnvalue> if headers are needed,
+    <returnvalue>false</returnvalue> if not.
+   </para>
+
+  </section>
+
+  <section id="reqRespHdr"
+  xreflabel="HttpdRequest::ResponseHeader">
+  <title><function>ResponseHeader</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdRequest</classname>::ResponseHeader</function>
+      </funcdef>
+      <paramdef>int<parameter> resp</parameter></paramdef>
+      <paramdef>const char *&amp;<parameter>p_xlat</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Send a basic set of <acronym>HTTP</acronym> response headers to
+    the client, possibly in preparation for further data from a
+    handler.  The status code to be sent is provided in <parameter
+    class=function>resp</parameter>.  It is subsequently translated
+    into a human-readable string, a pointer to which is copied into
+    <parameter class=function>p_xlat</parameter>.
+   </para>
+
+   <para>
+    The currently supported response codes are detailed in <xref
+    linkend="reqRespCodes">.  For a more detailed discussion of the
+    circumstances under which a given code might be used, the reader
+    is referred to the appropriate standards document, <ulink
+    url="ftp://ftp.isi.edu/in-notes/rfc2616.txt"><acronym>RFC</acronym>
+    2616 (Hypertext Transfer Protocol 1.1)</ulink> or previous
+    versions as appropriate to the desired application.
+   </para>
+
+   <table id="reqRespCodes" frame=top rowsep=0 tocentry=1>
+   <title>Supported <acronym>HTTP</acronym> Response Codes</title>
+   <tgroup cols=3 colsep=1>
+   <thead>
+    <row>
+     <entry>Constant</entry>
+     <entry><acronym>HTTP</acronym> Code</entry>
+     <entry>Meaning</entry>
+    </row>
+   </thead>
+   <tbody>
+    <row>
+     <entry><constant>HTTPD_RESP_CONTINUE</constant></entry>
+     <entry><literal>100</literal></entry>
+     <entry>Continue with request</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_PROTOCOL</constant></entry>
+     <entry><literal>101</literal></entry>
+     <entry>Protocol switch OK</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_OK</constant></entry>
+     <entry><literal>200</literal></entry>
+     <entry>Request succeeded</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_CREATED</constant></entry>
+     <entry><literal>201</literal></entry>
+     <entry>Request for resource creation succeeded</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_ACCEPTED</constant></entry>
+     <entry><literal>202</literal></entry>
+     <entry>Request accepted</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_NONAUTH_INFO</constant></entry>
+     <entry><literal>203</literal></entry>
+     <entry>Metainformation not authoritative</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_NO_CONTENT</constant></entry>
+     <entry><literal>204</literal></entry>
+     <entry>Request succeeded, no entity-body</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_SOME_CONTENT</constant></entry>
+     <entry><literal>205</literal></entry>
+     <entry>Request succeeded, client to reset view</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_MULTI_CHOICE</constant></entry>
+     <entry><literal>300</literal></entry>
+     <entry>Requested resource has multiple representations</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_MOVED_PERM</constant></entry>
+     <entry><literal>301</literal></entry>
+     <entry>Requested resource has new, permanent 
+      <acronym>URI</acronym></entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_MOVED_TEMP</constant></entry>
+     <entry><literal>302</literal></entry>
+     <entry>Requested resource has new, temporary 
+      <acronym>URI</acronym></entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_SEE_OTHER</constant></entry>
+     <entry><literal>303</literal></entry>
+     <entry>Requested resource has moved, use <literal>GET</literal>
+      to new <acronym>URI</acronym></entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_NOT_MODIFIED</constant></entry>
+     <entry><literal>304</literal></entry>
+     <entry>Conditional <literal>GET</literal>, but document not 
+      modified</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_USE_PROXY</constant></entry>
+     <entry><literal>305</literal></entry>
+     <entry>Requested resource must be accessed via a proxy</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_NEO_TEMP_MOVED</constant></entry>
+     <entry><literal>307</literal></entry>
+     <entry>Requested resource has new, temporary 
+      <acronym>URI</acronym></entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_BAD_REQ</constant></entry>
+     <entry><literal>400</literal></entry>
+     <entry>Malformed request syntax</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_UNAUTHORIZED</constant></entry>
+     <entry><literal>401</literal></entry>
+     <entry>Request requires authentication, but none was provided or
+      incorrect credentials were supplied</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_PAYMENT_REQ</constant></entry>
+     <entry><literal>402</literal></entry>
+     <entry>Reserved for future use</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_FORBIDDEN</constant></entry>
+     <entry><literal>403</literal></entry>
+     <entry>Request administratively forbidden</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_NOT_FOUND</constant></entry>
+     <entry><literal>404</literal></entry>
+     <entry>Requested <acronym>URI</acronym> was not found</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_METHOD_NOT_ALLOWED</constant></entry>
+     <entry><literal>405</literal></entry>
+     <entry>Request method specified not legal for this 
+      <acronym>URI</acronym></entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_NOT_ACCEPTABLE</constant></entry>
+     <entry><literal>406</literal></entry>
+     <entry>Resource requested cannot generate response entities
+      acceptable to the client</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_PROXY_AUTH</constant></entry>
+     <entry><literal>407</literal></entry>
+     <entry>Authentication required to use a proxy, but none was
+      provided or incorrect credentials were supplied</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_REQUEST_TIMEOUT</constant></entry>
+     <entry><literal>408</literal></entry>
+     <entry>Client request timeout</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_CONFLICT</constant></entry>
+     <entry><literal>409</literal></entry>
+     <entry>Current resource state in conflict with request</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_GONE</constant></entry>
+     <entry><literal>410</literal></entry>
+     <entry>Requested resource not available, and no new
+      <acronym>URI</acronym> is known</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_LENGTH_REQ</constant></entry>
+     <entry><literal>411</literal></entry>
+     <entry>Missing <literal>Content-Length:</literal> header</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_PRECOND_FAILED</constant></entry>
+     <entry><literal>412</literal></entry>
+     <entry>Request pre-condition failed on server side</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_TOO_LARGE</constant></entry>
+     <entry><literal>413</literal></entry>
+     <entry>Request entity too large</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_URI_TOO_LARGE</constant></entry>
+     <entry><literal>414</literal></entry>
+     <entry>Request <acronym>URI</acronym> too long</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_UNSUPPORTED_MEDIA</constant></entry>
+     <entry><literal>415</literal></entry>
+     <entry>Unsupported media type for requested resource and method</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_RANGE</constant></entry>
+     <entry><literal>416</literal></entry>
+     <entry>Resource extent does not match requested range</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_EXPECTATION_FAILED</constant></entry>
+     <entry><literal>417</literal></entry>
+     <entry>Client expectation cannot be met by server</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_SRV_ERROR</constant></entry>
+     <entry><literal>500</literal></entry>
+     <entry>Unexpected server error</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_METHOD_NOT_IMPL</constant></entry>
+     <entry><literal>501</literal></entry>
+     <entry>Unrecognized or unimplemented request method</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_BAD_GATEWAY</constant></entry>
+     <entry><literal>502</literal></entry>
+     <entry>Invalid response from upstream provider</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_UNAVAILABLE</constant></entry>
+     <entry><literal>503</literal></entry>
+     <entry>Temporary inability to service request</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_GATEWAY_TIMEOUT</constant></entry>
+     <entry><literal>504</literal></entry>
+     <entry>Timeout on upstream provider response</entry>
+    </row>
+    <row>
+     <entry><constant>HTTPD_RESP_HTTP_VERSION</constant></entry>
+     <entry><literal>505</literal></entry>
+     <entry>Requested <acronym>HTTP</acronym> version not supported</entry>
+    </row>
+   </tbody>
+   </tgroup>
+   </table>
+  </section>
+
+  <section id="reqRespBody"
+  xreflabel="HttpdRequest::ResponseBody">
+  <title><function>ResponseBody</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdRequest</classname>::ResponseBody</function>
+      </funcdef>
+      <paramdef>int<parameter> status</parameter></paramdef>
+      <paramdef>const char *<parameter>p_title</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This method is used to send a simple
+    <acronym>HTML</acronym>-formatted document in accompaniment to
+    <acronym>HTTP</acronym> error responses.  An
+    <acronym>HTTP</acronym> status code is provided in <parameter
+    class=function>status</parameter>; see <xref
+    linkend="reqRespCodes"> for possible values.  <parameter
+    class=function>p_title</parameter> points to the text to be used
+    within the <acronym>HTML</acronym> <markup>&lt;TITLE&gt;</markup> element. 
+   </para>
+
+  </section>
+
+  <section><title><function>Respond</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+void <function><classname>HttpdRequest</classname>::Respond</function>
+      </funcdef>
+      <paramdef>int<parameter> status</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This method generally encapsulates the <xref linkend="reqRespHdr"> and
+    <xref linkend="reqRespBody"> methods, and is used as a general error
+    handling mechanism when <acronym>HTTP</acronym> errors and
+    associated human-readable messages are to be sent to a client.  An
+    <acronym>HTTP</acronym> status code is provided in <parameter
+    class=function>status</parameter>.  See <xref
+    linkend="reqRespCodes"> for possible values.
+   </para>
+
+  </section>
+
+  <section><title><function>Redirect</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void<function><classname> HttpdRequest</classname>::Redirect</function>
+      </funcdef>
+      <paramdef>int<parameter> status</parameter></paramdef>
+      <paramdef>const char *<parameter>p_location</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Causes an <acronym>HTTP</acronym> redirect to be sent to the
+    client.  <parameter class=function>p_location</parameter> should
+    point to a string containing the path or <acronym>URI</acronym>
+    the client should be redirected to.  The redirect is sent with the
+    <acronym>HTTP</acronym> status code <parameter
+    class=function>status</parameter>; see <xref
+    linkend="reqRespCodes"> for possible values.
+   </para>
+
+   <important>
+    <para>
+     <parameter class=function>p_location</parameter> should always be
+     normalized (using <xref linkend="utNormalize">).
+    </para>
+   </important>
+
+   <para>
+    The <classname>HttpdRedirector</classname> class provides a
+    general handler for redirecting portions of Seminole's
+    <acronym>URL</acronym> space, and would normally encapsulate
+    <function>Redirect()</function>.  It is suggested that
+    <classname>HttpdRedirector</classname> be used when possible or
+    sensible.
+   </para>
+
+  </section>
+
+ </section>
+
+ <section><title>Public Data</title>
+  <para>
+   <classname>HttpdRequest</classname> contains no publically
+   accessible data members.  Methods are provided to access relevant
+   information when necessary.
+  </para>
+ </section>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

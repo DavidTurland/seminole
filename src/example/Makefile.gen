@@ -1,0 +1,49 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     example/Makefile.gen
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Compilation directives for Seminole itself
+##
+## AUTHOR:          A. Hoerter
+##
+## CREATION DATE:   Aug 21, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |08/21/01| File creation.                           | AMH  |
+## -----+--------+------------------------------------------+------+---------
+##  002 |10/13/01| A more generalized build system.         | AMH  |
+## -----+--------+------------------------------------------+------+---------
+##  003 |10/27/01| Recurse with top-level rules.            | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  004 |06/24/02| Build default content pack.              | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+####
+
+EXPAND DEPTH
+
+USE STANDARD_ENV
+
+OUTDIRS = $(BINOUT)
+BINARY  = $(SEMBIN)
+LIBS    = $(SEMLIB) $(SEMTGTLIB)
+CONTENT = $(BINOUT):DIR:semweb.pkg 
+
+EXTRA_INCLUDE $(SEMINCLUDE)
+
+EXPAND SRCDEPS
+
+USE STD_RULES MAKE_BIN MAKE_PREP MAKE_CONTENT

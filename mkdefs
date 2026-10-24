@@ -1,0 +1,37 @@
+# mkdefs - Configuration file for Seminole builds.
+
+# Unless you're porting to a new system or updating an existing port, you'll
+# likely want to modify this file only.
+#
+# Take a look in ports/ for possible choices and templates to modify.
+#
+# !! IMPORTANT !!
+#
+# There should be NO spaces after the values assigned to TARGET and PORT; 
+# otherwise you WILL get build errors.
+
+# Build target -- what will Seminole be running on?
+#
+# This is one of the following:
+#
+#    POSIX
+#    Win32
+#    VxWorks
+#
+# To add new values you must provide the target support code in
+# src/targets/<Target-Name>.
+#
+TARGET  = POSIX
+
+# Which toolchain?
+#
+# This is currently one of the following:
+#
+#    OpenBSD
+#    Solaris2
+#    Linux
+#    Irix
+#    MSVC
+#    Tornado_win32
+PORT    = Linux
+

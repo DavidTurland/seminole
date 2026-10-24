@@ -1,0 +1,359 @@
+
+<!-- HttpdOpSys reference -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title><classname>HttpdOpSys</classname> Reference</title>
+ <section><title>Introduction</title>
+
+  <para>
+   <classname>HttpdOpSys</classname> serves as an abstraction layer
+   between Seminole's platform-independent code and the specific
+   interfaces offered by the host operating system.  Primarily, it
+   provides generic memory and process management facilities, since
+   these are the most basic requirements for Seminole.
+  </para>  
+
+  <para>
+   More detailed architectural discussion of Seminole's portability
+   mechanisms can be found in <xref linkend="portingOpEnv">.
+  </para>
+
+  <para>
+   When requesting services from the underlying host operating system
+   through <classname>HttpdOpSys</classname>, it is possible for
+   internal errors to eventually be returned to the caller within
+   Seminole.  However, these errors are abstracted to generic
+   equivalents which are descriptive of the error condition, but do
+   not depend on any platform-specific representation.  The possible
+   <acronym>OS</acronym> errors are listed in <xref
+   linkend="opsErrorCodes">.
+  </para>
+
+  <table id="opsErrorCodes" frame=top rowsep=0 tocentry=1>
+  <title>OS Abstraction Layer Error Codes</title>
+  <tgroup cols=2 colsep=1>
+  <thead>
+   <row>
+    <entry>Constant</entry>
+    <entry>Meaning</entry>
+   </row>
+  </thead>
+  <tbody>
+   <row>
+    <entry>ERR_NOTFOUND</entry>
+    <entry>File, directory, or entity not found</entry>
+   </row>
+   <row>
+    <entry>ERR_SYSPERM</entry>
+    <entry>Administrative permission denied</entry>
+   </row>
+   <row>
+    <entry>ERR_NOTREADY</entry>
+    <entry>Device, resource, or unit not ready</entry>
+   </row>
+   <row>
+    <entry>ERR_LIMITRCHD</entry>
+    <entry>Maximum limit or capacity reached</entry>
+   </row>
+   <row>
+    <entry>ERR_IO</entry>
+    <entry>Low-level or hardware I/O error</entry>
+   </row>
+   <row>
+    <entry>ERR_WRONGTYPE</entry>
+    <entry>Inappropriate type or target for operation</entry>
+   </row>
+   <row>
+    <entry>ERR_OUTOFMEM</entry>
+    <entry>Ran out of memory</entry>
+   </row>
+   <row>
+    <entry>ERR_BADPARAM</entry>
+    <entry>Invalid or out-of-range parameter</entry>
+   </row>
+   <row>
+    <entry>ERR_BADFORMAT</entry>
+    <entry>The provided data is corrupted or not in a valid format.</entry>
+   </row>
+   <row>
+    <entry>ERR_UNKNOWN</entry>
+    <entry>Unknown/untranslatable error</entry>
+   </row>
+  </tbody>
+  </tgroup>
+  </table>
+
+ </section>
+
+ <section><title>Public Methods</title>
+
+  <section id="opsMalloc" xreflabel="HttpdOpSys::Malloc">
+   <title><function>Malloc</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       *<function><classname>HttpdOpSys</classname>::Malloc</function>
+      </funcdef>
+      <paramdef>size_t <parameter>sz</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Allocate new memory <parameter class=function>sz</parameter> bytes
+    in length.
+   </para>
+
+   <para>
+    Returns a pointer to a buffer of at least the requested size,
+    taking into account host alignment requirements, or
+    <symbol>NULL</symbol> upon error.
+   </para>
+
+  </section>
+
+  <section id="opsFree" xreflabel="HttpdOpSys::Free">
+  <title><function>Free</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdOpSys</classname>::Free</function>
+      </funcdef>
+      <paramdef>void *<parameter>p_ptr</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Release a block of allocated memory pointed to by <parameter
+    class=function>p_ptr</parameter>.
+   </para>
+
+  </section>
+
+  <section><title><function>Realloc</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       *<function><classname>HttpdOpSys</classname>::Realloc</function>
+      </funcdef>
+      <paramdef>void *<parameter>p_oldptr</parameter></paramdef>
+      <paramdef>size_t <parameter>newsz</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Expand or shrink the size of the memory block pointed to by <parameter
+    class=function>p_oldptr</parameter>, to be <parameter
+    class=function>newsz</parameter> bytes in length.
+   </para>
+
+   <para>
+    Returns a revised pointer upon success, or <symbol>NULL</symbol>
+    upon failure.
+   </para>
+
+   <important>
+    <para>
+     If <function>Realloc()</function> fails to change the size of a
+     given block of memory, the original block is invalidated and
+     cannot be used.
+    </para>
+   </important>
+
+  </section>
+
+  <section><title><function>Fork</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdOpSys</classname>::Fork
+        </function>
+      </funcdef>
+      <paramdef>void (*p_func)(HttpdParameter p1, HttpdParameter p2,
+      HttpdParameter p3)</paramdef>
+      <paramdef>HttpdParameter <parameter>p1</parameter></paramdef>
+      <paramdef>HttpdParameter <parameter>p2</parameter></paramdef>
+      <paramdef>HttpdParameter <parameter>p3</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Create a new process, job, or task (depending on the host
+    platform), which will immediately enter the function <parameter
+    class=function>p_func</parameter>, passing it <parameter
+    class=function>p1</parameter>, <parameter
+    class=function>p2</parameter>, and <parameter
+    class=function>p3</parameter> as arguments.
+   </para>
+
+   <para>
+    Returns <returnvalue>true</returnvalue> upon successful process
+    creation, <returnvalue>false</returnvalue> upon failure.
+   </para>
+
+  </section>
+
+  <section>
+  <title><function>JoinAll</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdOpSys</classname>::JoinAll</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This method is called after <classname>Httpd</classname> ceases to
+    <function>Fork()</function> new threads, in order to wait for
+    existing threads to die.  This is done to ensure internal
+    consistency of the handler chain.
+   </para>
+
+   <para>
+    When <function>JoinAll()</function> returns, all subthreads have
+    completed their processing and exited.
+   </para>
+
+  </section>
+
+  <section>
+  <title><function>NativeFileSystem</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       HttpdFileSystem *
+       <function><classname>HttpdOpSys</classname>::NativeFileSystem</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Some operating systems have their own native file systems (well, most
+    actually). On these systems, the native filesystem is abstracted
+    as a <xref linkend="fsAbstract"> interface 
+    (<classname>HttpdFileSystem</classname>).
+   </para>
+   <para>
+    On operating systems that do not have a native file system available
+    this routine shall return <symbol>NULL</symbol>. 
+   </para>
+  </section>
+
+  <section id="OpenSystemFile" xreflabel="HttpdOpSys::OpenSystemFile">
+  <title><function>OpenSystemFile</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       int
+       <function><classname>HttpdOpSys</classname>::OpenSystemFile</function>
+      </funcdef>
+      <paramdef>const char *<parameter>p_filename</parameter></paramdef>
+      <paramdef>HttpdDataSource *&<parameter>p_source</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    This routine maps a native operating system file to a 
+    <xref linkend="HttpdDataSource"> abstraction.
+   </para>
+   <para>
+    The address of the created data source object is placed in 
+    <parameter>p_source</parameter>. When the object is no longer
+    needed it should be released with <xref linkend="CloseSystemFile">.
+   </para>
+   <para>
+    Upon success, <literal>0</literal> is returned; otherwise a system
+    dependent error value is returned (see <xref
+    linkend="opsErrorCodes">).
+   </para>
+   <note>
+    <para>
+     This routine is optional and does not have to be implemented. 
+     If implemented, the symbol HTTPD_HAVE_NATIVE_FILE_SOURCES
+     should be defined. 
+    </para>
+   </note>   
+  </section>
+
+  <section id="CloseSystemFile" xreflabel="HttpdOpSys::CloseSystemFile">
+  <title><function>CloseSystemFile</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdOpSys</classname>::CloseSystemFile</function>
+      </funcdef>
+      <paramdef>HttpdDataSource *<parameter>p_source</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+   <para>
+    This releases the file mapping created with 
+    <xref linkend="OpenSystemFile">. The data source pointed to by 
+    <parameter>p_source</parameter> is no longer valid after this
+    method is called.
+   </para>
+  </section> 
+
+ </section>
+
+ <section><title>Public Data</title>
+
+  <para>
+   <classname>HttpdOpSys</classname> contains no publically
+   accessible data members.
+  </para>
+
+ </section>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

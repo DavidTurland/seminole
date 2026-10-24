@@ -1,0 +1,407 @@
+
+<!-- HttpdSocket reference -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter>
+
+<title><classname>HttpdSocket</classname> Reference</title>
+ <section><title>Introduction</title>
+  
+  <para>
+   <classname>HttpdSocket</classname> serves as a container for
+   platform-specific network operations, and provides abstract access
+   to a communication endpoint connected with a client.
+  </para>
+
+  <para>
+   <classname>HttpdSocket</classname> is derived from 
+   <classname>HttpdWritable</classname> and provides an implementation for
+   its abstract interface.
+  </para>
+  
+  <para>
+   The current implementation of <classname>HttpdSocket</classname>
+   closely mirrors the Berkeley sockets <acronym>API</acronym>, and
+   hence will be quite familiar to experienced <trademark
+   class=registered>UNIX</trademark> or WinSock programmers.  It is
+   expected that additional abstraction or separation of platform
+   independent and dependent code will occur in this area, so its
+   interfaces are subject to future change.
+  </para>
+
+  <para>
+   The <classname>HttpdSocket</classname> is derived from 
+   <xref linkend="wrtAbstract"> and thus provides an interface for
+   writing data.
+  </para>
+
+  <para>
+   Generally, <classname>HttpdSocket</classname> itself is
+   encapsulated by an <classname>HttpdRequest</classname> object, so
+   it is often of little concern to programmers modifying Seminole
+   within the existing framework (e.g. adding a handler).
+  </para>
+
+ </section>
+
+ <section><title>Public Methods</title>
+
+  <section><title><function>Write</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       int
+       <function><classname>HttpdSocket</classname>::Write</function>
+      </funcdef>
+      <paramdef>size_t <parameter>nbytes</parameter></paramdef>
+      <paramdef>const void *<parameter>ptr</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Given a pointer <parameter class=function>ptr</parameter> to a
+    block of storage <parameter class=function>nbytes</parameter> bytes in
+    length, attempt to write the data therein to a network endpoint
+    (socket).
+   </para>
+ 
+   <para>
+    It is important to note that some network <acronym>API</acronym>s
+    have semantics which make it possible for writes to return
+    successfully, yet incomplete, as opposed to blocking until an
+    error occurs or all data has been written.
+    <function>Write</function> takes the latter approach, so Seminole
+    programmers need not make allowances for it.
+   </para>
+
+   <para>
+    Upon success, <literal>0</literal> is returned; otherwise a system
+    dependent error value is returned (see <xref
+    linkend="opsErrorCodes">).
+   </para>
+
+
+  </section>
+
+  <section><title><function>ReadN</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       ssize_t
+       <function><classname>HttpdSocket</classname>::ReadN</function>
+      </funcdef>
+      <paramdef>void *<parameter>ptr</parameter></paramdef>
+      <paramdef>size_t <parameter>nbytes</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Given a pointer <parameter class=function>ptr</parameter> to a
+    block of previously allocated storage, read 
+    <parameter class=function>nbytes</parameter> bytes of data from a
+    network endpoint (socket).
+   </para>
+ 
+   <para>
+    It is important to note that some network <acronym>API</acronym>s
+    have semantics which make it possible for reads to return
+    successfully, yet incomplete, as opposed to blocking until an
+    error occurs or all data has been read.
+    <function>WriteN</function> takes the latter approach, so Seminole
+    programmers need not make allowances for it.
+   </para>
+
+   <para>
+    Returns the total number of bytes read upon success, or a
+    platform-dependent negative value upon error.
+   </para>
+
+  </section>  
+
+  <section><title><function>Gets</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdSocket</classname>::Gets</function>
+      </funcdef>
+      <paramdef>char *<parameter>p_buf</parameter></paramdef>
+      <paramdef>size_t <parameter>maxbuf</parameter></paramdef>
+      <paramdef>unsigned int <parameter>timeout</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Given a pointer <parameter class=function>p_buf</parameter> to a
+    block of previously allocated storage, read one line from the
+    communications endpoint represented by the parent 
+    <classname>HttpdSocket</classname> object, assuming that each line
+    is terminated by a newline character (<acronym>ASCII</acronym>
+    line feed).  The value of <parameter class=function>maxbuf</parameter>
+    is used to advise <function>Gets()</function> of the maximum length
+    of the storage pointed to by <parameter
+    class=function>p_buf</parameter>.  The resulting string is
+    terminated by an <acronym>ASCII</acronym> <literal>NUL</literal>
+    character.
+   </para>
+
+   <para>
+    It is worth noting that a carriage return may be embedded in the
+    buffer, as <function>Gets()</function> does not purge them.
+   </para>
+
+   <para>
+    If an entire input line is not received in 
+    <parameter class=function>timeout</parameter> seconds this function
+    should return <returnvalue>false</returnvalue>.
+   </para>
+
+   <para>
+    Returns <returnvalue>true</returnvalue> on success,
+    <returnvalue>false</returnvalue> upon failure.
+   </para>
+
+  </section>
+
+  <section><title><function>Socket</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdSocket</classname>::Socket</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Initializes a communications endpoint, which can subsequently be used
+    to receive a connection from clients, or to establish an outbound
+    connection with a server.
+   </para>
+
+   <para>
+    Calling <function>Socket()</function> is a generally a
+    prerequisite for calling any other method in
+    <classname>HttpdSocket</classname> meaningfully.
+   </para>
+
+   <para>
+    Returns <returnvalue>true</returnvalue> on success,
+    <returnvalue>false</returnvalue> upon failure.
+   </para>
+
+  </section>
+
+  <section><title><function>Close</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdSocket</classname>::Close</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Destroys the communications endpoint associated with the parent
+    <classname>HttpdSocket</classname> object.
+    <function>Close()</function> does not perform an orderly cleanup
+    of an active connection, so if <quote>graceful</quote>
+    termination of a connection is desired, use the
+    <function>Shutdown()</function> method instead.    
+   </para>
+
+  </section>
+
+  <section><title><function>Listen</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdSocket</classname>::Listen</function>
+      </funcdef>
+      <paramdef>unsigned short <parameter>port</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Causes a previously initialized communications endpoint to be
+    placed into a listening state, so that network clients can connect
+    to it.  The local port designated by <parameter
+    class=function>port</parameter> is used to discriminate incoming
+    connections.
+   </para>
+
+   <para>
+    Returns <returnvalue>true</returnvalue> on success,
+    <returnvalue>false</returnvalue> upon failure.
+   </para>
+
+  </section>
+
+  <section><title><function>Connect</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdSocket</classname>::Connect</function>
+      </funcdef>
+      <paramdef>HttpdIpAddress <parameter>addr</parameter></paramdef>
+      <paramdef>unsigned short <parameter>port</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Causes a previously initialized communications endpoint to be
+    connected with a remote system and process.  The remote system's
+    network address is provided in <parameter
+    class=function>addr</parameter>, while the remote port is provided
+    in <parameter class=function>port</parameter>.
+   </para>
+
+   <para>
+    Returns <returnvalue>true</returnvalue> on success,
+    <returnvalue>false</returnvalue> upon failure.
+   </para>
+
+  </section>
+
+  <section><title><function>Shutdown</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       void
+       <function><classname>HttpdSocket</classname>::Shutdown</function>
+      </funcdef><void>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Destroys the communications endpoint associated with the parent
+    <classname>HttpdSocket</classname> object.  The currently
+    established connection, if any, is first closed in an orderly
+    fashion.
+   </para>
+
+  </section>
+
+  <section id="sckAccept" xreflabel="HttpdSocket::Accept">
+  <title><function>Accept</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       bool
+       <function><classname>HttpdSocket</classname>::Accept</function>
+      </funcdef>
+      <paramdef>HttpdParameter &amp;<parameter>con</parameter></paramdef>
+      <paramdef>HttpdIpAddress &amp;<parameter>client_addr</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    Accept incoming connections to the communications endpoint
+    (previously prepared with <function>Listen()</function>)
+    contained within the parent <classname>HttpdSocket</classname>
+    object.
+   </para>
+
+   <para>
+    Upon successful acceptance of a new connection, the peer's network
+    address is placed in <parameter
+    class=function>client_addr</parameter>, while a handle for the 
+    connection itself is placed in <parameter
+    class=function>con</parameter>.  Once the new connection is
+    appropriately dispatched (typically by the creation of a new
+    server thread, process, or task), <function>Accept()</function> can be
+    called again to set up the next incoming connection request on the
+    original endpoint.  Thus, each connection accepted creates a new,
+    unique pair of endpoints.
+   </para>
+
+   <para>
+    Returns <returnvalue>true</returnvalue> on success,
+    <returnvalue>false</returnvalue> upon failure.
+   </para>
+
+   <note>
+   <para>
+    If necessary, a newly accepted connection should be aborted by means
+    of the <xref linkend="sckCancel"> method.
+   </para>
+   </note>
+
+  </section>
+
+  <section id="sckCancel" xreflabel="HttpdSocket::Cancel">
+  <title><function>Cancel</function></title>
+   <para>
+    <funcsynopsis>
+     <funcprototype>
+      <funcdef>
+       static void
+       <function><classname>HttpdSocket</classname>::Cancel</function>
+      </funcdef>
+      <paramdef>HttpdParameter <parameter>param</parameter></paramdef>
+     </funcprototype>
+    </funcsynopsis>
+   </para>
+
+   <para>
+    After acceptance of a new connection via
+    <xref linkend="sckAccept">, it is possible to find that
+    the connection should be prematurely ended, either for
+    administrative reasons or system errors.  In that case, the new
+    connection should be aborted by means of this method.
+   </para>
+
+  </section>
+
+ </section>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->

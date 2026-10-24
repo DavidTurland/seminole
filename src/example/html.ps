@@ -1,0 +1,42 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     html.ps
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     A perl filter for the example content.
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Jul 10, 2002
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE  
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |07/10/02| File creation.                           | MYG  |  
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+use strict;
+
+sub common_tokens
+{
+  my @timeinfo = gmtime(time);
+
+  while (<INPUT>)
+  {
+     s/__YEAR__/$timeinfo[5] + 1900/geo;
+
+     print OUTPUT $_;
+  }
+
+  return 1; # Very important to indicate success.
+}

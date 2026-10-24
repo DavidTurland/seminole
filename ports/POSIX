@@ -1,0 +1,110 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     ports/POSIX
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Parameters generally applicable to any POSIX system
+##
+## AUTHOR:          A. Hoerter
+##
+## CREATION DATE:   Oct 18, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |10/18/01| File creation.                           | AMH  |
+## -----+--------+------------------------------------------+------+---------
+##  002 |10/27/01| Recurse using top-level rules now.       | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##  003 |11/10/01| Fix recurse rule to work on some broken  | MYG  |
+##      |        | shells.                                  |      |
+## -----+--------+------------------------------------------+------+---------
+##  004 |01/24/02| Support host-based tools.                | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+### Various system- or environment-specific tweakable parameters.
+
+## Settings for POSIX systems
+
+MAKERULES  = Standard.rl
+
+# Output product filenames.
+OBJSFX     = o
+SEMLIB     = $(LIBOUT)/libsem.a
+SEMTGTLIB  = $(LIBOUT)/libsemtgt.a
+SEMBIN     = $(BINOUT)/shttpd
+SEMINC     = $(INCOUT)/seminole.h
+
+# Tool parameters.
+#
+# Normally, on POSIX we do not assume a cross-development environment.
+# Otherwise, HOSTCXX != CXX and HOSTCFLAGS != CFLAGS.
+PERLEXT    =
+TOOLEXT    =
+HOSTCXX    = $(CXX)
+HOSTCFLAGS = $(CFLAGS)
+MKTOOL     = $(DEPTH)/maketool.pl
+
+# Basic directory paths.
+BUILT_DIR  = $(DEPTH)/built/$(PORT)-$(TARGET)
+LIBOUT     = $(BUILT_DIR)/lib
+BINOUT     = $(BUILT_DIR)/bin
+INCOUT     = $(BUILT_DIR)/include
+HTMLOUT    = $(DEPTH)/built/doc/html
+TOOLOUT    = $(DEPTH)/built/tools
+
+# Should be adequate for most systems.  We just want a basic Bourne derived
+# shell.
+SHELL      = /bin/sh
+
+# Uncomment below if you have a really ancient `make', perhaps.
+# Shouldn't be necessary with anything modern.
+#MAKE      = make
+
+# If you have to change these, your system probably sucks.  (or isn't UNIX)
+TEST       = /bin/test
+MKDIR      = /bin/mkdir
+RM         = /bin/rm
+MV         = /bin/mv
+CP         = /bin/cp
+ECHO       = /bin/echo
+
+# Which SGML processing engine to use.
+# Obviously, SGML_PROC_CMD is heavily dependent on what you use here.
+SGMLPROC   = /usr/local/bin/openjade
+# Location of DSSSL for DocBook. (you will probably need to change this.)
+DSSSL      = /usr/local/share/sgml/docbook/dsssl/modular/html/docbook.dsl
+
+### Make meta-commands follow.
+
+# This is mostly to work around OpenJade's terrible design.
+SGML_PROC_CMD   = $(SGMLPROC) -d $(DSSSL) -t sgml $(SGML_SOURCE) && \
+		  $(MV) *.htm $(HTMLOUT)
+CLEAN_DIR_CMD   = $(RM) -fr 
+PREP_DIR_CMD    = $(MKDIR) -p
+
+# The reason we have $(LIBS) twice is that most UNIX linkers are
+# horribly broken. They assume that once they passed a library
+# that no other libraries will ever depend on any previous libraries. 
+#
+# That seems pretty silly to me and has always bugged me. I mean
+# it is almost trying to force you away from making things modular.
+LD_BINARY_CMD   = $(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS) $(SYSLIBS) $(LIBS)
+MK_LIB_CMD      = $(AR) cr $@ $(OBJS)
+RAN_LIB_CMD     = $(RANLIB) $@
+COPY_HDRS_CMD   = $(CP) $? $(INCOUT)
+RECURSE_CMD     = for dir in . $(SUBDIRS); do \
+			if [ "$$dir" != . ]; then \
+				(cd $$dir && $(MAKE) $(MFLAGS) $@); \
+			fi\
+		  done

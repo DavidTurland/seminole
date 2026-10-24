@@ -1,0 +1,115 @@
+##---------------------------------------------------------------------------
+##
+## MODULE NAME:     mimegen
+##
+## COPYRIGHT:       Copyright 2002, Mark Grosberg.  Please see the LICENSE
+##                  file within the Seminole distribution for terms of use.
+##                  If your distribution is incomplete, the Seminole
+##                  documentation and license are available on the World
+##                  Wide Web at http://www.conman.org/software/seminole/
+##
+## DESCRIPTION:     Translate an Apache mime.types file into a sorted
+##                  table that can be used in the sorted HttpdPair table
+##                  that some Seminole ports use.
+##
+##                  See the files src/targets/*/sem_native.cpp and the
+##                  table known as mimeTable[].
+##
+## AUTHOR:          M. Grosberg
+##
+## CREATION DATE:   Oct 28, 2001
+##
+##---------------------------------------------------------------------------
+##
+## HISTORY OF CHANGE
+##
+## -----+--------+------------------------------------------+------+---------
+## VERS | DATE   | DESCRIPTION OF CHANGE                    | INIT | PR#
+## =====+========+==========================================+======+=========
+##  001 |10/28/01| File creation.                           | MYG  |
+## -----+--------+------------------------------------------+------+---------
+##---------------------------------------------------------------------------
+
+use strict;
+
+my %extensions;
+
+sub parse_file
+{
+   my $fn = shift;
+
+   open(INF, $fn) or die "Can't open $fn\n";
+   while (<INF>)
+   {
+      next if /^\s*\#.*$/; # Skip comments. 
+      next if /^\s*$/;     # Skip blanks.
+
+      my @fields = split(/\s+/, $_);
+      my $mime   = shift(@fields);
+      foreach (@fields)
+      { $extensions{$_} = $mime; }
+   }
+   close(INF);
+}
+
+sub make_c_string
+{
+   my $str = shift;
+
+   $str =~ s/([\\\"\'])/"\\$1"/geo;  # General escapes.
+   $str =~ s/(\n)/"\\n"/geo;         # \n
+   $str =~ s/(\t)/"\\t"/geo;         # \t
+   $str =~ s/(\r)/"\\r"/geo;         # \r
+ 
+   return "\"$str\"";
+}
+
+sub generate_output
+{
+   my @sx = sort keys %extensions;
+   my $ml = 0; # Max length
+
+   # First, compute the maximum amount of space needed (max length)
+   foreach (@sx)
+   {
+     my $l = length(make_c_string($_));
+     $ml   = ($l > $ml) ? $l : $ml;
+   }
+
+   # Now build the table.
+   my $li = scalar(@sx);
+   foreach (@sx)
+   {
+      my $ext  = make_c_string($_);
+      my $mime = make_c_string($extensions{$_}); 
+      my $sp   = $ml - length($ext);
+      my $co   = (--$li) ? ',' : '';
+
+      if ($sp > 0)
+      { $sp = (" " x $sp); }
+      else
+      { $sp = "";          }
+
+      print "  { $ext,$sp $mime }$co\n";
+   }
+}
+
+sub main
+{
+   my $mime_types = shift(@ARGV);
+
+   if (defined $mime_types)
+   { 
+      parse_file($mime_types);
+      print "{\n";
+      generate_output();
+      print "}\n";
+   }
+   else
+   {
+      print "Usage::\n\t$0 [mime.types file path]\n";
+   }
+}
+
+main(); # Run.
+

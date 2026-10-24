@@ -1,0 +1,139 @@
+
+<!-- Overview -->
+
+<!-- 
+     Copyright 2002, Mark Grosberg.  Please see the LICENSE file within
+     the Seminole distribution for terms of use.
+ 
+     If your distribution is incomplete, the Seminole documentation
+     and license are available on the World Wide Web at:
+
+     http://www.conman.org/software/seminole/
+
+  -->
+
+<chapter><title>Overview</title>
+
+ <section><title>About Seminole</title>
+
+  <para>
+   Unlike a traditional web server, Seminole does not require a file
+   system.  Instead, objects derived from the
+   <classname>HttpdHandler</classname> class lay claim to various
+   portions of the <acronym>URL</acronym> space.  When a request comes
+   in, Seminole finds the appropriate handler and dispatches the
+   request to it.  A default handler class,
+   <classname>HttpdFileHandler</classname>, is provided for serving up
+   files from a filesystem abstraction. In addition, both a native 
+   ROM filesystem and an abstraction to a <acronym>POSIX</acronym> file system
+   are included for more traditional web serving.  
+   This default framework is suitable for testing and development purposes on
+   <acronym>POSIX</acronym>-oriented systems such as <trademark
+   class=registered>UNIX</trademark>, or for production use on embedded
+   operating systems providing such a file system interface.
+  </para>
+
+  <para>
+   When Seminole is started, an instance of the class
+   <classname>Httpd</classname> is created for each configured port
+   (selective binding to a particular address is not yet supported--
+   connections received on any interface will be accepted).  For each
+   possible <acronym>URL</acronym> prefix, a derivative of the
+   abstract base class <classname>HttpdHandler</classname> is inserted
+   into a list within <classname>Httpd</classname>. Therefore,
+   <classname>Httpd</classname> is a container for one or more
+   <classname>HttpdHandler</classname> instances.
+  </para>
+
+  <para>
+   When an incoming request is made, the Seminole instance will create a new
+   thread (depending on the services provided by the host platform,
+   <quote>task</quote> or <quote>job</quote> may be the appropriate
+   concept) to process the request. The request handler will then create
+   a new instance of <classname>HttpdRequest</classname>.
+  </para>
+
+  <para>
+   <classname>HttpdRequest</classname> will read in the
+   <acronym>HTTP</acronym> request and <acronym>MIME</acronym> headers
+   and perform some basic parsing.  Most of the request processing
+   centers around calling methods provided by the
+   <classname>HttpdRequest</classname> class.
+  </para>
+
+  <para>
+   The handler code in <classname>Httpd</classname> will then call
+   each of the registered <classname>HttpdHandler</classname>s in
+   series giving them the <acronym>URL</acronym> and checking to see
+   if they want it. They can either accept the request -- in which
+   case the request object is destroyed after the selected
+   <classname>HttpdHandler</classname> processes the request; or they
+   can reject the request, in which case, the next handler in the
+   chain is called. If no more handlers are present, some default
+   error processing is performed.
+  </para>
+
+  <para>
+   Each <classname>HttpdHandler</classname> is associated with a
+   <quote>prefix string</quote>. This string represents the first
+   <varname>N</varname> characters that a <acronym>URI</acronym> must
+   begin with for that handler to be considered
+   <quote>responsible</quote> for that request. The
+   <classname>Httpd</classname> class maintains a linked list sorted
+   by order of prefix length.
+  </para>
+
+  <example><title>Handler Mapping Precedence</title>
+   <informaltable>
+   <tgroup cols=2>
+   <tbody>
+    <row>
+     <entry><systemitem class=constant>/web/dynamic/</systemitem></entry>
+     <entry>Handler 1</entry>
+    </row>
+    <row>
+     <entry><systemitem class=constant>/cgi-bin/</systemitem></entry>
+     <entry>Handler 2</entry>
+   </row>
+   <row>
+    <entry><systemitem class=constant>/web/</systemitem></entry>
+    <entry>Handler 3</entry>
+   </row>
+   <row>
+    <entry><systemitem class=constant>/</systemitem></entry>
+    <entry>Handler 4</entry>
+   </row>
+  </tbody>
+  </tgroup>
+  </informaltable>
+ </example>
+
+ <para>
+  Requests will always try the most specific <acronym>URL</acronym>
+  prefix first. So a request for <systemitem
+  class=constant>/web/dynamic/foo.html</systemitem> would be passed to
+  handler 1 in this example, whereas a request for <systemitem
+  class=constant>/web/foo.html</systemitem> would be passed to handler
+  3.
+ </para>
+
+</section>
+
+</chapter>
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:nil
+sgml-namecase-general:t
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:nil
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:nil
+sgml-local-ecat-files:nil
+End:
+-->
